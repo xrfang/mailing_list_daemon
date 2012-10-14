@@ -45,7 +45,7 @@ func LoadSettings(filename string) (*Settings, error) {
 				"postmaster":        {"admin@example.com"},
 				"admin@example.com": {"postmaster"},
 			},
-		}, //RelayCfg
+		}, //RelayCtrl
 		filename,
 		logger,
 	}

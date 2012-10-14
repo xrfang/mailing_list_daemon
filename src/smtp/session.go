@@ -34,7 +34,6 @@ func normalize(addr string) (string, string) {
 }
 
 type SmtpError string
-
 func (e SmtpError) Error() string {
 	return string(e)
 }
@@ -47,7 +46,7 @@ type Session struct {
 	sender     string
 	recipients map[string]byte
 	file       *os.File
-	p_errs     byte //protocol error (e.g. syntex error, command out-of-order)
+	p_errs     byte //protocol errors (e.g. syntex error, command out-of-order)
 	r_errs     byte //relay errors
 	*Settings
 }
@@ -71,30 +70,24 @@ func (s Session) expects() (reply string) {
 	return
 }
 
-func (s *Session) relayCtrl() string {
-	for r, _ := range s.recipients {
-		parts := strings.SplitN(r, "@", 2)
-		if strings.ToLower(parts[0]) == "postmaster" {
-			continue
-		}
-		if len(parts) < 2 {
-			return "Relay denied for " + r
-		}
-		ctrl, ok := s.RelayCtrl[parts[1]]
-		if !ok {
-			return "Relay denied for " + r
-		}
-		_, ok = ctrl[parts[0]]
-		if !ok {
-			return "Relay denied for " + r
-		}
-		rcpts, ok := ctrl[s.sender]
-		if !ok {
-			return "Relay denied for " + s.sender
-		}
-		if len(rcpts) == 0 {
-			continue
-		}
+func (s *Session) relay(addr string) string {
+	parts := strings.SplitN(addr, "@", 2)
+	if len(parts) < 2 {
+		return "Relay denied for " + addr
+	}
+	ctrl, ok := s.RelayCtrl[parts[1]]
+	if !ok {
+		return "Relay denied for " + addr
+	}
+	expn, ok := ctrl[parts[0]]
+	if !ok {
+		return "Relay denied for " + addr
+	}
+	rcpts, ok := ctrl[s.sender]
+	if !ok {
+		return "Relay denied for " + s.sender
+	}
+	if len(rcpts) > 0 {
 		noMatch := true
 		for _, u := range rcpts {
 			if u == parts[0] {
@@ -106,6 +99,8 @@ func (s *Session) relayCtrl() string {
 			return "Relay denied for " + s.sender
 		}
 	}
+	//todo: EXPN...
+	
 	return ""
 }
 
@@ -194,7 +189,7 @@ func (s *Session) handle(cmdline []byte) string {
 			s.state = 2
 			return "250 At your service"
 		case "DATA":
-			if s.state < 3 || len(s.recipients) == 0 {
+			if s.state < 3 {
 				s.p_errs++
 				return s.expects()
 			}
@@ -231,8 +226,7 @@ func (s *Session) handle(cmdline []byte) string {
 			cmd, addr := normalize(param)
 			if cmd == "TO" {
 				s.Debugf("%s>   addr=[%s]", s.CliAddr(), addr)
-				s.recipients[addr] = 1
-				if msg := s.relayCtrl(); len(msg) > 0 {
+				if msg := s.relay(addr); len(msg) > 0 {
 					s.r_errs++
 					s.Reset(PROC_FLUSH)
 					return "553 " + msg
