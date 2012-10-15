@@ -70,6 +70,24 @@ func (s Session) expects() (reply string) {
 	return
 }
 
+func (s Session) expnList(ctrl map[string][]string, list []string) {
+    for _, r := range list {
+        at := strings.Index(r, "@")
+        if at > 0 && at < len(r) - 1 {
+		    s.Debugf("%s>   =>%s", s.CliAddr(), r)
+			s.recipients[r] = 1
+		} else {
+			expn, ok := ctrl[r]
+			if ok {
+				s.Debugf("%s>   =>[%s, %d addr(s)]", s.CliAddr(), r, len(expn))
+				s.expnList(ctrl, expn)
+			} else {
+				s.Log("CFGERR: Unresolved recpient: " + r)
+			}
+		}
+	}
+}
+
 func (s *Session) relay(addr string) string {
 	parts := strings.SplitN(addr, "@", 2)
 	if len(parts) < 2 {
@@ -99,8 +117,7 @@ func (s *Session) relay(addr string) string {
 			return "Relay denied for " + s.sender
 		}
 	}
-	//todo: EXPN...
-	
+	s.expnList(ctrl, expn)
 	return ""
 }
 
@@ -208,7 +225,7 @@ func (s *Session) handle(cmdline []byte) string {
 			}
 			cmd, addr := normalize(param)
 			if cmd == "FROM" {
-				s.Debugf("%s>   addr=[%s]", s.CliAddr(), addr)
+				s.Debugf("%s>   =[%s]", s.CliAddr(), addr)
 				s.sender = addr
 				s.state = 3
 				return "250 OK"
@@ -225,7 +242,7 @@ func (s *Session) handle(cmdline []byte) string {
 			}
 			cmd, addr := normalize(param)
 			if cmd == "TO" {
-				s.Debugf("%s>   addr=[%s]", s.CliAddr(), addr)
+				s.Debugf("%s>   =[%s]", s.CliAddr(), addr)
 				if msg := s.relay(addr); len(msg) > 0 {
 					s.r_errs++
 					s.Reset(PROC_FLUSH)
