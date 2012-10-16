@@ -11,7 +11,7 @@ type RelayCfg map[string]map[string][]string
 
 type Settings struct {
 	Bind      string
-	Port      string
+	Port      int
 	MaxCli    int
 	DebugMode bool
 	Spool     string
@@ -36,7 +36,7 @@ func LoadSettings(filename string) (*Settings, error) {
 	}
 	settings := Settings{
 		"127.0.0.1",       //Bind
-		"25",              //Port
+		25,                //Port
 		1,                 //MaxCli
 		false,             //DebugMode
 		"/var/spool/mail", //Spool

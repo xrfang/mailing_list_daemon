@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"smtp"
+	"time"
 )
 
 var (
@@ -33,17 +34,24 @@ func main() {
 		}
 	}()
 	rateLimit = make(chan int, env.MaxCli)
-	ln, err := net.Listen("tcp", env.Bind+":"+env.Port)
+	ln, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP(env.Bind), Port: env.Port})
 	if err != nil {
 		panic(err)
 	}
+	ln.SetDeadline(time.Now().Add(1 * time.Minute))
 	svrState := "SMTP" + env.Dump()
 	env.Log(svrState)
 	fmt.Println(svrState)
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			panic(err)
+			if opErr, ok := err.(*net.OpError); ok && opErr.Temporary() {
+				env.Log("TODO: process outbound messages...")
+				ln.SetDeadline(time.Now().Add(1 * time.Minute))
+				continue
+			} else {
+				panic(err)
+			}
 		}
 		select {
 		case rateLimit <- 1:
