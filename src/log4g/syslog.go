@@ -12,6 +12,16 @@ const (
 	DEBUG_MODE = true
 )
 
+type Logger interface {
+	Mode(verbose bool)
+	Log(v interface{})
+	Logf(format string, v ...interface{})
+	Debug(v interface{})
+	Debugf(format string, v ...interface{})
+	Panic(v interface{})
+	Panicf(format string, v ...interface{})
+}
+
 type SysLogger struct {
 	verbose bool
 	writer  *syslog.Writer
@@ -45,9 +55,9 @@ func (sl SysLogger) Debug(v interface{}) {
 	sl.Debugf("%v", v)
 }
 
-func (sl SysLogger) Panic(v interface{}) {
+func (sl SysLogger) Panicf(format string, v ...interface{}) {
 	var cnt int
-	sl.Log(v)
+	sl.Logf(format, v...)
 	stack := make([]byte, 8192)
 	if sl.verbose {
 		cnt = runtime.Stack(stack, true)
@@ -59,4 +69,8 @@ func (sl SysLogger) Panic(v interface{}) {
 		sl.Log(strings.TrimSpace(line))
 	}
 	panic(v)
+}
+
+func (sl SysLogger) Panic(v interface{}) {
+	sl.Panicf("%v", v)
 }

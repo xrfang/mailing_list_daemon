@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log4g"
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -32,6 +34,18 @@ func normalize(addr string) (string, string) {
 		}
 	}
 	return cmd, addr
+}
+
+func SendMails(spool string, logger log4g.Logger) {
+	envelopes, err := filepath.Glob(spool + "/*.env")
+	if err == nil {
+		logger.Debugf("SendMails: queued_messages=%v", len(envelopes))
+		for _, e := range envelopes {
+			logger.Log("TODO: send - " + e)
+		}
+	} else {
+		logger.Log("RUNERR: " + err.Error())
+	}
 }
 
 type SmtpError string
@@ -176,15 +190,19 @@ func (s *Session) prep() (err error) {
 	file, err := os.Create(fmt.Sprintf("%s/inbound/%s/%d.env", s.Spool, s.path, s.seq))
 	if err == nil {
 		defer file.Close()
-		route := make(map[string]map[string]int)
-		route["SENDER"] = map[string]int{s.sender: 0}
-		route["DOMAIN"] = make(map[string]int)
+		route := make(map[string]map[string]int64)
+		route["STATUS"] = map[string]int64{
+			"created":   time.Now().Unix(),
+			"processed": 0,
+		}
+		route["SENDER"] = map[string]int64{s.sender: 0}
+		route["DLERRS"] = make(map[string]int64)
 		for r, _ := range s.recipients {
 			p := strings.SplitN(r, "@", 2)
-			route["DOMAIN"][p[1]] = 0
+			route["DLERRS"][p[1]] = 0
 			_, ok := route[p[1]]
 			if !ok {
-				route[p[1]] = make(map[string]int)
+				route[p[1]] = make(map[string]int64)
 			}
 			route[p[1]][p[0]] = 0
 		}

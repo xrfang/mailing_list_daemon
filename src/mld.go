@@ -43,10 +43,13 @@ func main() {
 	env.Log(svrState)
 	fmt.Println(svrState)
 	for {
+		go smtp.SendMails(env.Spool+"/outbound", env)
 		conn, err := ln.Accept()
 		if err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Temporary() {
-				env.Log("TODO: process outbound messages...")
+				if !opErr.Timeout() {
+					env.Log("RUNERR: " + opErr.Error())
+				}
 				ln.SetDeadline(time.Now().Add(1 * time.Minute))
 				continue
 			} else {
