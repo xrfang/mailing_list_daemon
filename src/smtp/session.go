@@ -2,6 +2,7 @@ package smtp
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -34,6 +35,7 @@ func normalize(addr string) (string, string) {
 }
 
 type SmtpError string
+
 func (e SmtpError) Error() string {
 	return string(e)
 }
@@ -71,10 +73,10 @@ func (s Session) expects() (reply string) {
 }
 
 func (s Session) expnList(ctrl map[string][]string, list []string) {
-    for _, r := range list {
-        at := strings.Index(r, "@")
-        if at > 0 && at < len(r) - 1 {
-		    s.Debugf("%s>   =>%s", s.CliAddr(), r)
+	for _, r := range list {
+		at := strings.Index(r, "@")
+		if at > 0 && at < len(r)-1 {
+			s.Debugf("%s>   =>%s", s.CliAddr(), r)
 			s.recipients[r] = 1
 		} else {
 			expn, ok := ctrl[r]
@@ -174,19 +176,25 @@ func (s *Session) prep() (err error) {
 	file, err := os.Create(fmt.Sprintf("%s/inbound/%s/%d.env", s.Spool, s.path, s.seq))
 	if err == nil {
 		defer file.Close()
-		_, err = file.Write([]byte("MAIL FROM:<" + s.sender + ">\r\n"))
-	}
-	if err == nil {
+		route := make(map[string]map[string]int)
+		route["SENDER"] = map[string]int{s.sender: 0}
+		route["DOMAIN"] = make(map[string]int)
 		for r, _ := range s.recipients {
-			_, err = file.Write([]byte("RCPT TO:<" + r + ">\r\n"))
-			if err != nil {
-				return
+			p := strings.SplitN(r, "@", 2)
+			route["DOMAIN"][p[1]] = 0
+			_, ok := route[p[1]]
+			if !ok {
+				route[p[1]] = make(map[string]int)
+			}
+			route[p[1]][p[0]] = 0
+		}
+		enc := json.NewEncoder(file)
+		if err = enc.Encode(&route); err == nil {
+			s.file, err = os.Create(fmt.Sprintf("%s/inbound/%s/%d.msg", s.Spool, s.path, s.seq))
+			if err == nil {
+				_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + s.svrAddr() + "; " + time.Now().String()))
 			}
 		}
-	}
-	s.file, err = os.Create(fmt.Sprintf("%s/inbound/%s/%d.msg", s.Spool, s.path, s.seq))
-	if err == nil {
-		_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + s.svrAddr() + "; " + time.Now().String()))
 	}
 	return
 }
