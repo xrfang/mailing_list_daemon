@@ -14,6 +14,7 @@ const (
 
 type Logger interface {
 	Mode(verbose bool)
+	Verbose() bool
 	Log(v interface{})
 	Logf(format string, v ...interface{})
 	Debug(v interface{})
@@ -34,6 +35,10 @@ func NewSysLogger(ident string, verbose bool) (*SysLogger, error) {
 
 func (sl *SysLogger) Mode(verbose bool) {
 	sl.verbose = verbose
+}
+
+func (sl SysLogger) Verbose() bool {
+	return sl.verbose
 }
 
 func (sl SysLogger) Logf(format string, v ...interface{}) {
