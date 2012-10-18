@@ -3,13 +3,11 @@ package smtp
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log4g"
 	"math/rand"
 	"net"
 	"os"
-	"path"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -35,101 +33,6 @@ func normalize(addr string) (string, string) {
 		}
 	}
 	return cmd, addr
-}
-
-func testFile(fn string, flag int, perm os.FileMode) (res byte, err error) {
-	f, err := os.OpenFile(fn, flag, perm)
-	if err == nil {
-		f.Close()
-		res = 0
-	} else {
-		switch {
-		case os.IsPermission(err):
-		    res = 1
-		case os.IsNotExist(err):
-		    res = 2
-		case os.IsExist(err):
-		    res = 3
-		default:
-		    res = 4  
-		}
-	}
-	return 
-}
-
-func sendMail(env string, logger log4g.Logger) {
-	ef, err := os.OpenFile(env, os.O_RDWR, 0600)
-	if err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		return
-	}
-	defer ef.Close()
-	/*
-	msg := []byte(env)
-	copy(msg[len(msg)-3:len(msg)], "msg")
-	fmsg, err := os.OpenFile(string(msg), os.O_RDWR, 0600)
-	if err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		logger.Log("  Deleting empty/invalid envelope: " + env)
-		err = os.Remove(env)
-		if err != nil {
-			logger.Log("  RUNERR: " + err.Error())
-		}
-		return
-	}
-	fmsg.Close()
-	*/
-	dec := json.NewDecoder(ef)
-	route := make(map[string]map[string]int64)
-	if err = dec.Decode(&route); err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		return
-	}
-	now := time.Now().Unix()
-	sched := route["STATUS"]["schedule"]
-	logger.Debugf("%s: schedued=%d, now=%d", path.Base(env[:len(env)-4]), sched, now)
-	if sched > now {
-		return
-	}
-	route["STATUS"]["schedule"] = now + 3600 //by default only retry after 1 hour
-    tmpfile := os.TempDir() + "/" + path.Base(env)
-	tf, err := os.Create(tmpfile)
-	if err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		return
-	}	
-	defer tf.Close()
-	enc := json.NewEncoder(tf)
-	if err = enc.Encode(&route); err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		return	
-	}
-	ef.Close()
-	tf.Close()
-    err = os.Rename(tmpfile, env)
-    if err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		return
-	}
-	logger.Log("TODO: send - " + env)
-}
-
-func SendMails(spool string, logger log4g.Logger) {
-	envelopes, err := filepath.Glob(spool + "/*.env")
-	if err == nil {
-		logger.Debugf("SendMails: queued_messages=%v", len(envelopes))
-		for _, e := range envelopes {
-			go sendMail(e, logger)
-		}
-	} else {
-		logger.Log("RUNERR: " + err.Error())
-	}
-}
-
-type SmtpError string
-
-func (e SmtpError) Error() string {
-	return string(e)
 }
 
 type Session struct {
@@ -393,7 +296,7 @@ func (s *Session) Serve() error {
 			return err
 		}
 		if xl {
-			return SmtpError("Line too long")
+			return errors.New("Line too long")
 		}
 		reply := s.handle(cmd)
 		if len(reply) > 0 {

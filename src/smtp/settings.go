@@ -7,7 +7,7 @@ import (
 	"path"
 )
 
-type RelayCfg map[string]map[string][]string
+type relayCfg map[string]map[string][]string
 
 type Settings struct {
 	Bind      string
@@ -15,13 +15,13 @@ type Settings struct {
 	MaxCli    int
 	DebugMode bool
 	Spool     string
-	RelayCtrl RelayCfg
+	RelayCtrl relayCfg
 	fileName  string
 	*log4g.SysLogger
 }
 
 func (s Settings) Dump() string {
-	s.RelayCtrl = RelayCfg{}
+	s.RelayCtrl = relayCfg{}
 	dump, err := json.Marshal(s)
 	if err == nil {
 		return string(dump)
@@ -40,7 +40,7 @@ func LoadSettings(filename string) (*Settings, error) {
 		1,                 //MaxCli
 		false,             //DebugMode
 		"/var/spool/mail", //Spool
-		RelayCfg{
+		relayCfg{
 			"example.com": {
 				"postmaster":        {"admin@example.com"},
 				"admin@example.com": {"postmaster"},
