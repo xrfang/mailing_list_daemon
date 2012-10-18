@@ -16,12 +16,14 @@ type Settings struct {
 	DebugMode bool
 	Spool     string
 	RelayCtrl relayCfg
+	Retries   []int
 	fileName  string
 	*log4g.SysLogger
 }
 
 func (s Settings) Dump() string {
 	s.RelayCtrl = relayCfg{}
+	s.Retries = []int{}
 	dump, err := json.Marshal(s)
 	if err == nil {
 		return string(dump)
@@ -46,6 +48,12 @@ func LoadSettings(filename string) (*Settings, error) {
 				"admin@example.com": {"postmaster"},
 			},
 		}, //RelayCtrl
+		[]int{
+			900, 1800, 3600, 7200,
+			7200, 7200, 7200, 7200,
+			7200, 7200, 7200, 7200,
+			7200, 7200,
+		}, //Retries
 		filename,
 		logger,
 	}

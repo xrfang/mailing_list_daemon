@@ -56,12 +56,15 @@ func sendMail(env string, logger log4g.Logger) {
 	if sched > now {
 		return
 	}
-	route["STATUS"]["schedule"] = now + 3600 //by default only retry after 1 hour
+	route["STATUS"]["schedule"] = now + 3600 //by default, retry after 1 hour
 	err = saveRoute(env, route)
 	if err != nil {
 		logger.Log("RUNERR: " + err.Error())
 		return
 	}
+    for dom, cnt := range route["DLERRS"] {
+        
+    }
 	logger.Log("TODO: send - " + env)
 }
 

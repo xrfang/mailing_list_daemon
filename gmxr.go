@@ -1,11 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"strings"
+	"sync"
 )
 
 func MXResolver(ctrl chan chan string) {
@@ -20,7 +21,7 @@ func MXResolver(ctrl chan chan string) {
 					ips, err := net.LookupIP(mx[i].Host)
 					if err == nil {
 						for _, ip := range ips {
-							c <- "@" + ip.String()
+							c <- fmt.Sprintf("@%s=%d", ip.String(), mx[i].Pref)
 							cnt++
 						}
 					}
@@ -37,33 +38,41 @@ func MXResolver(ctrl chan chan string) {
 }
 
 func main() {
+	if len(os.Args) < 2 {
+		fmt.Printf("USAGE: %s <domain1> <domain2> ... \n", path.Base(os.Args[0]))
+		return
+	}
 	mxrc := make(chan chan string)
 	go MXResolver(mxrc)
-	fmt.Println("Go MX Resolver Ready")
-	br := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("> ")
-		input, _, err := br.ReadLine()
-		if err != nil {
-			panic(err)
-		}
-		name := strings.ToLower(strings.TrimSpace(string(input)))
-		if name == "quit" || name == "exit" {
-			break
-		}
-		ch := make(chan string)
-		mxrc <- ch
-		ch <- name
-		for {
-			ip, ok := <-ch
-			if !ok {
-				break
+	var wg sync.WaitGroup
+	for i := 1; i < len(os.Args); i++ {
+		wg.Add(1)
+		go func(domain string) {
+			mx := make(map[string]string)
+			ch := make(chan string)
+			mxrc <- ch
+			ch <- domain
+			for {
+				ip, ok := <-ch
+				if !ok {
+					break
+				}
+				if ip[0] == '@' {
+					s := strings.Split(ip[1:], "=")
+					mx[s[0]] = s[1]
+				} else {
+					fmt.Println(domain)
+					fmt.Println("  " + ip[1:])
+				}
 			}
-			if ip[0] == '@' {
-				fmt.Println(ip[1:])
-			} else {
-				fmt.Println("ERROR: " + ip[1:])
+			if len(mx) > 0 {
+				fmt.Println(domain)
+				for k, v := range mx {
+					fmt.Println("  " + k + "\t" + v)
+				}
 			}
-		}
+			wg.Done()
+		}(os.Args[i])
 	}
+	wg.Wait()
 }
