@@ -1,81 +1,99 @@
 package smtp
 
 import (
-	"encoding/json"
 	"log4g"
-	"os"
-	"path"
+    "net"
+    "path"
 	"path/filepath"
-	"time"
 )
 
-type relayRoute map[string]map[string]int64
+var (
+    resolver chan chan string
+)
 
-func loadRoute(env string) (route relayRoute, err error) {
-	route = make(relayRoute)
-	ef, err := os.OpenFile(env, os.O_RDWR, 0600)
-	if err != nil {
-		return
-	}
-	defer ef.Close()
-	msg := []byte(env)
-	copy(msg[len(msg)-3:len(msg)], "msg")
-	mf, err := os.OpenFile(string(msg), os.O_RDWR, 0600)
-	if err != nil {
-		return
-	}
-	mf.Close()
-	dec := json.NewDecoder(ef)
-	err = dec.Decode(&route)
-	return
+//type relayRoute map[string]map[string]int64
+
+func init() {
+    resolver = make(chan chan string)
 }
 
-func saveRoute(env string, route relayRoute) (err error) {
-	tmpfile := os.TempDir() + "/" + path.Base(env)
-	tf, err := os.Create(tmpfile)
-	if err != nil {
-		return
-	}
-	defer tf.Close()
-	enc := json.NewEncoder(tf)
-	if err = enc.Encode(&route); err == nil {
-		err = os.Rename(tmpfile, env)
-	}
-	return
+func send(server string, env *envelope, logger log4g.Logger) bool {
+    logger.Log("TODO: send mail...")
+    logger.Log("  ^server: " + server)
+	logger.Log("  ^domain: " + env.domain)
+	logger.Log("  ^file: " + env.file)
+    return true
 }
 
-func sendMail(env string, logger log4g.Logger) {
-	route, err := loadRoute(env)
-	if err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		return
-	}
-	now := time.Now().Unix()
-	sched := route["STATUS"]["schedule"]
-	logger.Debugf("%s: schedued=%d, now=%d", path.Base(env[:len(env)-4]), sched, now)
-	if sched > now {
-		return
-	}
-	route["STATUS"]["schedule"] = now + 3600 //by default, retry after 1 hour
-	err = saveRoute(env, route)
-	if err != nil {
-		logger.Log("RUNERR: " + err.Error())
-		return
-	}
-    for dom, cnt := range route["DLERRS"] {
-        
+func sendMail(file string, ss *Settings) {
+    env, err := loadEnvelope(file, 3600)
+    if err != nil {
+		ss.Log("RUNERR: " + err.Error())
+		return        
     }
-	logger.Log("TODO: send - " + env)
+    if env == nil {
+        ss.Debug("On hold: " + path.Base(file))
+        return
+    }
+    done := false
+    ch := make(chan string)
+    resolver <- ch
+    ch <- env.domain
+    for {
+        ip, ok := <-ch
+        if !ok {
+            break
+        }
+        if ip[0] == '@' {
+            if !done {
+                done = send(ip[1:], env, ss)
+            }
+        } else {
+            env.errors[env.domain] = ip[1:]
+        }
+    }
+    err = env.flush(ss)
+    if err != nil {
+        ss.Log("RUNERR: " + err.Error())
+    }
 }
 
-func SendMails(spool string, logger log4g.Logger) {
+func MXResolver() {
+	for {
+		ch := <-resolver
+		go func(c chan string) {
+			domain := <-c
+			mx, err := net.LookupMX(domain)
+			if err == nil {
+				cnt := 0
+				for i := 0; i < len(mx); i++ {
+					ips, err := net.LookupIP(mx[i].Host)
+					if err == nil {
+						for _, ip := range ips {
+							c <- "@" + ip.String()
+							cnt++
+						}
+					}
+				}
+				if cnt == 0 {
+					c <- "!Cannot get MX record for " + domain
+				}
+			} else {
+				c <- "!" + err.Error()
+			}
+			close(c)
+		}(ch)
+	}
+}
+
+func SendMails(spool string, ss *Settings) {
 	envelopes, err := filepath.Glob(spool + "/*.env")
 	if err == nil {
-		logger.Debugf("SendMails: queued_messages=%v", len(envelopes))
+		ss.Debugf("SendMails: queued_messages=%v", len(envelopes))
 		for _, e := range envelopes {
-			go sendMail(e, logger)
+			go sendMail(e, ss)
 		}
 	} else {
-		logger.Log("RUNERR: " + err.Error())
+		ss.Log("RUNERR: " + err.Error())
 	}
 }

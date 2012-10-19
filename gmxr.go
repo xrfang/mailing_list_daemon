@@ -5,13 +5,16 @@ import (
 	"net"
 	"os"
 	"path"
-	"strings"
 	"sync"
 )
 
-func MXResolver(ctrl chan chan string) {
+var resolver chan chan string
+func init() {
+	resolver = make(chan chan string)
+}
+func MXResolver() {
 	for {
-		ch := <-ctrl
+		ch := <-resolver
 		go func(c chan string) {
 			domain := <-c
 			mx, err := net.LookupMX(domain)
@@ -21,7 +24,7 @@ func MXResolver(ctrl chan chan string) {
 					ips, err := net.LookupIP(mx[i].Host)
 					if err == nil {
 						for _, ip := range ips {
-							c <- fmt.Sprintf("@%s=%d", ip.String(), mx[i].Pref)
+							c <- "@" + ip.String()
 							cnt++
 						}
 					}
@@ -42,15 +45,14 @@ func main() {
 		fmt.Printf("USAGE: %s <domain1> <domain2> ... \n", path.Base(os.Args[0]))
 		return
 	}
-	mxrc := make(chan chan string)
-	go MXResolver(mxrc)
+	go MXResolver()
 	var wg sync.WaitGroup
 	for i := 1; i < len(os.Args); i++ {
 		wg.Add(1)
 		go func(domain string) {
-			mx := make(map[string]string)
+			done := false
 			ch := make(chan string)
-			mxrc <- ch
+			resolver <- ch
 			ch <- domain
 			for {
 				ip, ok := <-ch
@@ -58,17 +60,14 @@ func main() {
 					break
 				}
 				if ip[0] == '@' {
-					s := strings.Split(ip[1:], "=")
-					mx[s[0]] = s[1]
+					if !done {
+						fmt.Printf("TODO: connect to %s to send mail...\n", ip[1:])
+						done = true
+					}
 				} else {
-					fmt.Println(domain)
-					fmt.Println("  " + ip[1:])
-				}
-			}
-			if len(mx) > 0 {
-				fmt.Println(domain)
-				for k, v := range mx {
-					fmt.Println("  " + k + "\t" + v)
+					//fmt.Println("  " + ip[1:])
+					//when bail-out, the message is useful
+					fmt.Printf("TODO: %s has problems, increase counter\n", domain)					
 				}
 			}
 			wg.Done()

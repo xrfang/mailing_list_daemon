@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -136,6 +137,7 @@ func (s *Session) Reset(reason byte) {
 	s.recipients = make(map[string]byte)
 	idir := s.Spool + "/inbound/" + s.path + "/"
 	odir := s.Spool + "/outbound/"
+	ls := len(s.Spool + "/inbound/")
 	switch reason {
 	case PROC_SUBMIT:
 		os.MkdirAll(odir, 0777)
@@ -145,7 +147,7 @@ func (s *Session) Reset(reason byte) {
 			if err != nil {
 				s.Log("PROC_SUBMIT_READDIR: " + err.Error())
 			}
-			s.Debugf("Queueing %d file(s)...", len(msgs))
+			s.Debug("Queueing inbound messages...")
 			envs := 0
 			for _, fn := range msgs {
 				if strings.HasSuffix(fn, ".env") {
@@ -153,7 +155,7 @@ func (s *Session) Reset(reason byte) {
 				}
 				fi := idir + fn
 				fo := odir + s.path + "." + fn
-				s.Debugf("  %s => %s", fi, fo)
+				s.Debugf("  %s", fi[ls:])
 				err = os.Rename(fi, fo)
 				if err != nil {
 					s.Logf("PROC_SUBMIT_MOVEFILE(%s): %s", fi, err.Error())
@@ -168,38 +170,38 @@ func (s *Session) Reset(reason byte) {
 	}
 }
 
-func (s *Session) prep() (err error) {
-	err = os.MkdirAll(s.Spool+"/inbound/"+s.path, 0777)
+func (s *Session) prep() error {
+	inbound := s.Spool+"/inbound/"+s.path
+	err := os.MkdirAll(inbound, 0777)
 	if err != nil {
-		return
+		return err
 	}
-	file, err := os.Create(fmt.Sprintf("%s/inbound/%s/%d.env", s.Spool, s.path, s.seq))
-	if err == nil {
-		defer file.Close()
-		route := make(map[string]map[string]int64)
-		route["STATUS"] = map[string]int64{
-			"schedule": 0,
+	domains := make(map[string][]string)
+    for r, _ := range s.recipients {
+		p := strings.SplitN(r, "@", 2)
+		domains[p[1]] = append(domains[p[1]], r)
+	}
+	for d, u := range domains {
+		file, err := os.Create(fmt.Sprintf("%s/%d@%s@0.env", inbound, s.seq, d))
+		if err != nil {
+			return err
 		}
-		route["SENDER"] = map[string]int64{s.sender: 0}
-		route["DLERRS"] = make(map[string]int64)
-		for r, _ := range s.recipients {
-			p := strings.SplitN(r, "@", 2)
-			route["DLERRS"][p[1]] = 0
-			_, ok := route[p[1]]
-			if !ok {
-				route[p[1]] = make(map[string]int64)
-			}
-			route[p[1]][p[0]] = 0
+		defer file.Close()
+		env := envelope{
+			Sender: s.sender,
+			Recipients: u,
+			Attempted: 0,
 		}
 		enc := json.NewEncoder(file)
-		if err = enc.Encode(&route); err == nil {
-			s.file, err = os.Create(fmt.Sprintf("%s/inbound/%s/%d.msg", s.Spool, s.path, s.seq))
-			if err == nil {
-				_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + s.svrAddr() + "; " + time.Now().String()))
-			}
+		if err = enc.Encode(&env); err != nil {
+			return err
 		}
 	}
-	return
+	s.file, err = os.Create(fmt.Sprintf("%s/%d.msg", inbound, s.seq))
+	if err == nil {
+		_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + s.svrAddr() + "; " + time.Now().String()))
+	}
+	return nil
 }
 
 func (s *Session) handle(cmdline []byte) string {
@@ -318,7 +320,10 @@ func NewSession(conn net.Conn, env *Settings) (*Session, error) {
 	rand.Seed(now)
 	sec := now / 1000000
 	mic := now % 1000000
-	path := fmt.Sprintf("%x.%x%x", sec, mic, rand.Intn(256))
+	path := fmt.Sprintf("%s.%s%s",
+		strconv.FormatInt(sec, 36),
+		strconv.FormatInt(mic, 36),
+		strconv.FormatInt(int64(rand.Intn(1024)), 36))
 	err := os.MkdirAll(env.Spool+"/inbound/"+path, 0777)
 	if err != nil {
 		return nil, err
