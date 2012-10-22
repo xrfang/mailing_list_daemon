@@ -16,7 +16,7 @@ import (
 const (
 	PROC_QUEUED = iota //add mail to queue
 	PROC_SUBMIT        //confirm relay of queue (move inbound to outbound)
-	PROC_FLUSH         //discard queued mail for this session
+	PROC_FLUSH         //discard queued mail for this svrSession
 )
 
 func normalize(addr string) (string, string) {
@@ -36,7 +36,7 @@ func normalize(addr string) (string, string) {
 	return cmd, addr
 }
 
-type Session struct {
+type svrSession struct {
 	conn       net.Conn
 	path       string
 	state      byte
@@ -49,7 +49,7 @@ type Session struct {
 	*Settings
 }
 
-func (s Session) expects() (reply string) {
+func (s svrSession) expects() (reply string) {
 	reply = "503 Bad sequence of commands"
 	cmds := ""
 	switch s.state {
@@ -68,25 +68,29 @@ func (s Session) expects() (reply string) {
 	return
 }
 
-func (s Session) expnList(ctrl map[string][]string, list []string) {
+func (s svrSession) expnList(ctrl map[string][]string, list []string, name string) {
 	for _, r := range list {
-		at := strings.Index(r, "@")
-		if at > 0 && at < len(r)-1 {
-			s.Debugf("%s>   =>%s", s.CliAddr(), r)
-			s.recipients[r] = 1
+		if r == name {
+			s.Log("CFGERR: Cyclic recipient name: " + r)
 		} else {
-			expn, ok := ctrl[r]
-			if ok {
-				s.Debugf("%s>   =>[%s, %d addr(s)]", s.CliAddr(), r, len(expn))
-				s.expnList(ctrl, expn)
+			at := strings.Index(r, "@")
+			if at > 0 && at < len(r)-1 {
+				s.Debugf("%s>   =>%s", s.CliAddr(), r)
+				s.recipients[r] = 1
 			} else {
-				s.Log("CFGERR: Unresolved recpient: " + r)
+				expn, ok := ctrl[r]
+				if ok {
+					s.Debugf("%s>   =>[%s, %d addr(s)]", s.CliAddr(), r, len(expn))
+					s.expnList(ctrl, expn, r)
+				} else {
+					s.Log("CFGERR: Unresolved recpient: " + r)
+				}
 			}
 		}
 	}
 }
 
-func (s *Session) relay(addr string) string {
+func (s *svrSession) relay(addr string) string {
 	parts := strings.SplitN(addr, "@", 2)
 	if len(parts) < 2 {
 		return "Relay denied for " + addr
@@ -115,19 +119,19 @@ func (s *Session) relay(addr string) string {
 			return "Relay denied for " + s.sender
 		}
 	}
-	s.expnList(ctrl, expn)
+	s.expnList(ctrl, expn, parts[0])
 	return ""
 }
 
-func (s Session) CliAddr() string {
+func (s svrSession) CliAddr() string {
 	return s.conn.RemoteAddr().String()
 }
 
-func (s Session) svrAddr() string {
+func (s svrSession) svrAddr() string {
 	return strings.Split(s.conn.LocalAddr().String(), ":")[0]
 }
 
-func (s *Session) Reset(reason byte) {
+func (s *svrSession) Reset(reason byte) {
 	if s.file != nil {
 		s.file.Close()
 		s.file = nil
@@ -161,7 +165,7 @@ func (s *Session) Reset(reason byte) {
 					s.Logf("PROC_SUBMIT_MOVEFILE(%s): %s", fi, err.Error())
 				}
 			}
-			s.Debugf("Message(s) queued: %d", envs)
+			s.Debugf("Envelope(s) queued: %d", envs)
 		} else if !os.IsNotExist(err) {
 			s.Log("PROC_SUBMIT_OPENDIR: " + err.Error())
 		}
@@ -170,14 +174,14 @@ func (s *Session) Reset(reason byte) {
 	}
 }
 
-func (s *Session) prep() error {
-	inbound := s.Spool+"/inbound/"+s.path
+func (s *svrSession) prep() error {
+	inbound := s.Spool + "/inbound/" + s.path
 	err := os.MkdirAll(inbound, 0777)
 	if err != nil {
 		return err
 	}
 	domains := make(map[string][]string)
-    for r, _ := range s.recipients {
+	for r, _ := range s.recipients {
 		p := strings.SplitN(r, "@", 2)
 		domains[p[1]] = append(domains[p[1]], r)
 	}
@@ -188,9 +192,9 @@ func (s *Session) prep() error {
 		}
 		defer file.Close()
 		env := envelope{
-			Sender: s.sender,
+			Sender:     s.sender,
 			Recipients: u,
-			Attempted: 0,
+			Attempted:  0,
 		}
 		enc := json.NewEncoder(file)
 		if err = enc.Encode(&env); err != nil {
@@ -204,7 +208,7 @@ func (s *Session) prep() error {
 	return nil
 }
 
-func (s *Session) handle(cmdline []byte) string {
+func (s *svrSession) handle(cmdline []byte) string {
 	cmdstr := string(cmdline)
 	if s.state < 4 {
 		chunks := strings.SplitN(cmdstr, " ", 2)
@@ -258,7 +262,6 @@ func (s *Session) handle(cmdline []byte) string {
 				s.Debugf("%s>   =[%s]", s.CliAddr(), addr)
 				if msg := s.relay(addr); len(msg) > 0 {
 					s.r_errs++
-					s.Reset(PROC_FLUSH)
 					return "553 " + msg
 				}
 				return "250 OK"
@@ -289,7 +292,7 @@ func (s *Session) handle(cmdline []byte) string {
 	return ""
 }
 
-func (s *Session) Serve() error {
+func (s *svrSession) Serve() error {
 	br := bufio.NewReader(s.conn)
 	for {
 		s.conn.SetDeadline(time.Now().Add(5 * time.Minute))
@@ -315,7 +318,7 @@ func (s *Session) Serve() error {
 	return nil
 }
 
-func NewSession(conn net.Conn, env *Settings) (*Session, error) {
+func NewSvrSession(conn net.Conn, env *Settings) (*svrSession, error) {
 	now := int64(time.Now().UnixNano() / 1000)
 	rand.Seed(now)
 	sec := now / 1000000
@@ -328,7 +331,7 @@ func NewSession(conn net.Conn, env *Settings) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	session := &Session{
+	ss := &svrSession{
 		conn,
 		path,
 		1,  //state
@@ -341,5 +344,5 @@ func NewSession(conn net.Conn, env *Settings) (*Session, error) {
 		env,                   //Settings
 	}
 	_, err = conn.Write([]byte("220 Service ready\r\n"))
-	return session, err
+	return ss, err
 }

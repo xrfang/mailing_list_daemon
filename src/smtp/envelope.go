@@ -63,6 +63,11 @@ func loadEnvelope(file string, lock uint32) (*envelope, error) {
 	return &env, err
 }
 
+func (e *envelope) log(rcpt string, msg string) {
+	println("Logging envelope error: " + msg)
+	e.errors[rcpt] = msg
+}
+
 func (e *envelope) flush(ss *Settings) error {
 	ss.Log("TODO: update envelope")
 	if e.file == "" {

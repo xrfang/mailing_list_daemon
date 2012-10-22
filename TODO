@@ -2,6 +2,8 @@ TODO
 
 Possible enhancements in the order of priority:
 
+- Allow pass-through of mails sent to "postmaster"
+
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
 

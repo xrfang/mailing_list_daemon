@@ -66,7 +66,7 @@ func main() {
 		}
 		environ.Debug("Connected: " + conn.RemoteAddr().String())
 		go func(environ *smtp.Settings) {
-			s, err := smtp.NewSession(conn, environ)
+			s, err := smtp.NewSvrSession(conn, environ)
 			if err != nil {
 				environ.Panic(err)
 			}

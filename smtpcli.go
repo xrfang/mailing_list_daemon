@@ -1,15 +1,15 @@
 package main
 
 import (
-    "bufio"
+	"bufio"
+	"fmt"
 	"net"
 	"os"
-	"fmt"
 	"time"
 )
 
 func main() {
-    conn, err := net.Dial("tcp", os.Args[1] + ":25")
+	conn, err := net.Dial("tcp", os.Args[1]+":25")
 	if err != nil {
 		panic(err)
 	}
