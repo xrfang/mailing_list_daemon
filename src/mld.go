@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	environ       smtp.Settings
+	environ   smtp.Settings
 	rateLimit chan int
 )
 
@@ -42,7 +42,6 @@ func main() {
 	svrState := "SMTP" + environ.Dump()
 	environ.Log(svrState)
 	fmt.Println(svrState)
-	go smtp.MXResolver()
 	for {
 		go smtp.SendMails(environ.Spool+"/outbound", environ)
 		conn, err := ln.Accept()
