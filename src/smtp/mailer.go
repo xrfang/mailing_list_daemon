@@ -99,6 +99,7 @@ func sendMail(file string, ss *Settings) {
 		return
 	}
 	for _, mx := range mxs {
+		msg.Seek(0, 0)
 		if send(mx.Host, env, msg, ss) {
 			break
 		}
