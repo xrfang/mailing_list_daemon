@@ -2,6 +2,12 @@ TODO
 
 Possible enhancements in the order of priority:
 
+- Try use <postmaster@[ip-address]> as FROM TO:
+
+- Process retry and bounce
+
+- Research anti-spam protocols including X-Originating-IP and Sender (RFC5322)
+
 - Allow pass-through of mails sent to "postmaster"
 
 - Try to use non-root user for better security:
