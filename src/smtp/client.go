@@ -18,7 +18,7 @@ type cliSession struct {
 
 func (s *cliSession) act(cmd string, expect string) error {
 	if len(cmd) > 0 {
-		s.lg.Debug("smtpcli> " + cmd)
+		s.lg.Debug("cli> " + cmd)
 		_, err := s.conn.Write([]byte(cmd + "\r\n"))
 		if err != nil {
 			return err
@@ -30,7 +30,7 @@ func (s *cliSession) act(cmd string, expect string) error {
 		if len(msg) == 0 {
 			continue
 		}
-		s.lg.Debug("<smtpsvr " + string(msg))
+		s.lg.Debug("<svr " + string(msg))
 		if err != nil {
 			return err
 		}

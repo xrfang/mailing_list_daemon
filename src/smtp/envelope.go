@@ -63,9 +63,12 @@ func loadEnvelope(file string, lock uint32) (*envelope, error) {
 	return &env, err
 }
 
-func (e *envelope) log(rcpt string, msg string) {
-	println("Logging envelope error: " + msg)
-	e.errors[rcpt] = msg
+func (e *envelope) log(rcpt string, msg string, fatal bool) {
+	if fatal {
+		e.errors[rcpt] = "!" + msg
+	} else {
+		e.errors[rcpt] = "?" + msg
+	}
 }
 
 func (e *envelope) flush(ss *Settings) error {

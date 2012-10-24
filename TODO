@@ -2,6 +2,8 @@ TODO
 
 Possible enhancements in the order of priority:
 
+- Add AccessControl, allow relay to any address from allowed IP and FROM address
+
 - Try use <postmaster@[ip-address]> as FROM TO:
 
 - Process retry and bounce
