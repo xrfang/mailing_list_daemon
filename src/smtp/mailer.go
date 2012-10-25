@@ -23,7 +23,8 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 		env.log("", err.Error(), false)
 		return false
 	}
-	err = cs.act("MAIL FROM:<"+env.Sender+">", "2")
+	//err = cs.act("MAIL FROM:<"+env.Sender+">", "2")
+	err = cs.act("MAIL FROM:<postmaster@["+strings.Split(cs.conn.LocalAddr().String(), ":")[0]+"]>", "2")
 	if err != nil {
 		env.log("", err.Error(), fatal(err))
 		return false
@@ -46,11 +47,14 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 		buf := make([]byte, 65536)
 		for {
 			in, err := io.ReadFull(msg, buf)
+			ss.Logf("got data from msg, size=%d", in)
 			if in == 0 {
 				break
 			}
-			_, err = cs.conn.Write(buf[:in])
+			out, err := cs.conn.Write(buf[:in])
+			ss.Logf("sent data to remote, size=%d", out)
 			if err != nil {
+				ss.Logf("error while sending, %v", err)
 				env.log("", err.Error(), false)
 				return false
 			}

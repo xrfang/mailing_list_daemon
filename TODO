@@ -2,15 +2,17 @@ TODO
 
 Possible enhancements in the order of priority:
 
-- Add AccessControl, allow relay to any address from allowed IP and FROM address
+- Try use <postmaster@[ip-address]> as FROM is not good (spf softfail), use original domain (from config)
 
-- Try use <postmaster@[ip-address]> as FROM TO:
+- Remove succesfully sent messages
 
 - Process retry and bounce
 
-- Research anti-spam protocols including X-Originating-IP and Sender (RFC5322)
+- Add AccessControl, allow relay to any address from allowed IP and FROM address
 
 - Allow pass-through of mails sent to "postmaster"
+
+- Research anti-spam protocols including SPF, X-Originating-IP and Sender (RFC5322)
 
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l

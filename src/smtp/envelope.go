@@ -82,3 +82,6 @@ func (e *envelope) flush(ss *Settings) error {
 	e.file = ""
 	return nil
 }
+
+func (e envelope) bounce() {
+}
