@@ -84,5 +84,6 @@ func (e *envelope) flush(ss *Settings) error {
 	return nil
 }
 
-func (e envelope) bounce() {
+func (e envelope) bounce(errmsg string) {
+	
 }

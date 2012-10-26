@@ -60,9 +60,7 @@ func LoadSettings(filename string) (*Settings, error) {
 		}, //RelayCtrl
 		[]int{
 			900, 1800, 3600, 7200,
-			7200, 7200, 7200, 7200,
-			7200, 7200, 7200, 7200,
-			7200, 7200,
+			14400, 28800, 57600,		
 		}, //Retries
 		filename,
 		logger,
