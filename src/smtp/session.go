@@ -124,7 +124,11 @@ func (s *svrSession) relay(addr string) string {
 }
 
 func (s svrSession) CliAddr() string {
-	return s.conn.RemoteAddr().String()
+	addr := s.conn.RemoteAddr().String()
+	if !strings.HasPrefix(addr, "127.0.0.1:") {
+		addr = strings.Split(addr, ":")[0]
+	}
+	return addr
 }
 
 func (s svrSession) svrAddr() string {
@@ -195,6 +199,7 @@ func (s *svrSession) prep() error {
 			Sender:     s.sender,
 			Recipients: u,
 			Attempted:  0,
+			Origin:     s.postmaster(s.sender),
 		}
 		enc := json.NewEncoder(file)
 		if err = enc.Encode(&env); err != nil {

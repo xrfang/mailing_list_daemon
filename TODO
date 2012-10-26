@@ -1,12 +1,8 @@
-TODO
-
-Possible enhancements in the order of priority:
-
-- Try use <postmaster@[ip-address]> as FROM is not good (spf softfail), use original domain (from config)
-
-- Remove succesfully sent messages
+Tasks in the order of priority:
 
 - Process retry and bounce
+
+- Remove succesfully sent messages
 
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
 

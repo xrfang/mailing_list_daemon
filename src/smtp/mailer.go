@@ -13,6 +13,9 @@ func fatal(err error) bool {
 	return strings.HasPrefix(err.Error(), "5")
 }
 func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
+	if server[len(server)-1] == '.' {
+		server = server[:len(server)-1]
+	}
 	cs, err := NewCliSession(server, ss)
 	defer func() {
 		if cs != nil {
@@ -23,8 +26,7 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 		env.log("", err.Error(), false)
 		return false
 	}
-	//err = cs.act("MAIL FROM:<"+env.Sender+">", "2")
-	err = cs.act("MAIL FROM:<postmaster@["+strings.Split(cs.conn.LocalAddr().String(), ":")[0]+"]>", "2")
+	err = cs.act("MAIL FROM:<"+env.Origin+">", "2")
 	if err != nil {
 		env.log("", err.Error(), fatal(err))
 		return false
@@ -45,20 +47,20 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 			return false
 		}
 		buf := make([]byte, 65536)
+		cnt := 0
 		for {
 			in, err := io.ReadFull(msg, buf)
-			ss.Logf("got data from msg, size=%d", in)
+			cnt += in
 			if in == 0 {
 				break
 			}
-			out, err := cs.conn.Write(buf[:in])
-			ss.Logf("sent data to remote, size=%d", out)
+			_, err = cs.conn.Write(buf[:in])
 			if err != nil {
-				ss.Logf("error while sending, %v", err)
 				env.log("", err.Error(), false)
 				return false
 			}
 		}
+		ss.Debugf("%s> %s (%d bytes)", server, path.Base(env.content), cnt)
 		err = cs.act("\r\n.", "2")
 		if err != nil {
 			env.log("", err.Error(), fatal(err))

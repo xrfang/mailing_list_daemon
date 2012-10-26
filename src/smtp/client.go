@@ -11,6 +11,7 @@ import (
 )
 
 type cliSession struct {
+	server string
 	conn   net.Conn
 	reader *bufio.Reader
 	lg     log4g.Logger
@@ -18,7 +19,7 @@ type cliSession struct {
 
 func (s *cliSession) act(cmd string, expect string) error {
 	if len(cmd) > 0 {
-		s.lg.Debug("cli> " + cmd)
+		s.lg.Debug(s.server + "> " + cmd)
 		_, err := s.conn.Write([]byte(cmd + "\r\n"))
 		if err != nil {
 			return err
@@ -30,7 +31,7 @@ func (s *cliSession) act(cmd string, expect string) error {
 		if len(msg) == 0 {
 			continue
 		}
-		s.lg.Debug("<svr " + string(msg))
+		s.lg.Debug(s.server + "< " + string(msg))
 		if err != nil {
 			return err
 		}
@@ -65,6 +66,7 @@ func NewCliSession(server string, logger log4g.Logger) (*cliSession, error) {
 		return nil, err
 	}
 	cs := &cliSession{
+		server: server,
 		conn:   conn,
 		reader: bufio.NewReader(conn),
 		lg:     logger,

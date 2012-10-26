@@ -14,6 +14,7 @@ type envelope struct {
 	Sender     string
 	Recipients []string
 	Attempted  int
+	Origin     string
 	domain     string
 	file       string
 	content    string

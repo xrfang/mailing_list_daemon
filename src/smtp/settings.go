@@ -31,6 +31,16 @@ func (s Settings) Dump() string {
 	return err.Error()
 }
 
+func (s Settings) postmaster(sender string) string {
+	for domain, ctrl := range s.RelayCtrl {
+		_, ok := ctrl[sender]
+		if ok {
+			return "postmaster@" + domain
+		}
+	}
+	return "postmaster@[127.0.0.1]"
+}
+
 func LoadSettings(filename string) (*Settings, error) {
 	logger, err := log4g.NewSysLogger(path.Base(os.Args[0]), log4g.DEBUG_MODE)
 	if err != nil {
