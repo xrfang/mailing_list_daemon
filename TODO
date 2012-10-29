@@ -4,8 +4,6 @@ Tasks in the order of priority:
 
 - Remove succesfully sent messages
 
-- Do NOT use readFull for sending mail to avoid problem with large message
-
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
 
 - Allow pass-through of mails sent to "postmaster"

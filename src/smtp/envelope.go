@@ -1,6 +1,7 @@
 package smtp
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -124,9 +125,20 @@ func (e envelope) Bounce(rcpts []string, errmsg string) (err error) {
 	msg.Write([]byte("contact the other email provider for further information=\r\n"))
 	msg.Write([]byte("about the course of this error.\r\n"))
 	msg.Write([]byte("\r\n----- Original message -----\r\n\r\n"))
-	msg.Write([]byte("TODO: read header of original message"))
-	msg.WriteTo(bmsg)
-	//todo: check error of the writeto!
+	br := bufio.NewReader(omsg)
+	cnt := 0
+	for cnt < 100 {
+		line, err := br.ReadString('\n')
+		if err != nil || line == "\r\n" {
+			break
+		}
+		msg.Write([]byte(line))
+		cnt++
+	}
+	_, err = msg.WriteTo(bmsg)
+	if err != nil {
+		return
+	}
 	benv, err := os.Create(efn)
 	if err != nil {
 		return
