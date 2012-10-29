@@ -19,6 +19,17 @@ const (
 	PROC_FLUSH         //discard queued mail for this svrSession
 )
 
+func newMsgId() string {
+	now := int64(time.Now().UnixNano() / 1000)
+	rand.Seed(now)
+	sec := now / 1000000
+	mic := now % 1000000
+	return fmt.Sprintf("%s.%s%s",
+		strconv.FormatInt(sec, 36),
+		strconv.FormatInt(mic, 36),
+		strconv.FormatInt(int64(rand.Intn(1024)), 36))
+}
+
 func normalize(addr string) (string, string) {
 	cmd := ""
 	parts := strings.Split(addr, ":")
@@ -324,14 +335,7 @@ func (s *svrSession) Serve() error {
 }
 
 func NewSvrSession(conn net.Conn, env *Settings) (*svrSession, error) {
-	now := int64(time.Now().UnixNano() / 1000)
-	rand.Seed(now)
-	sec := now / 1000000
-	mic := now % 1000000
-	path := fmt.Sprintf("%s.%s%s",
-		strconv.FormatInt(sec, 36),
-		strconv.FormatInt(mic, 36),
-		strconv.FormatInt(int64(rand.Intn(1024)), 36))
+	path := newMsgId()
 	err := os.MkdirAll(env.Spool+"/inbound/"+path, 0777)
 	if err != nil {
 		return nil, err

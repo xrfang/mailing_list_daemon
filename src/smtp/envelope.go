@@ -1,10 +1,12 @@
 package smtp
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -21,7 +23,7 @@ type envelope struct {
 	errors     map[string]string
 }
 
-func loadEnvelope(file string, lock uint32) (*envelope, error) {
+func LoadEnvelope(file string, lock uint32) (*envelope, error) {
 	p := strings.Split(file, "@")
 	ts, err := strconv.ParseInt(p[2][0:len(p[2])-4], 36, 64)
 	if err != nil {
@@ -84,6 +86,63 @@ func (e *envelope) flush(ss *Settings) error {
 	return nil
 }
 
-func (e envelope) bounce(errmsg string) {
-	
+func (e envelope) Bounce(rcpts []string, errmsg string) (err error) {
+	if e.Sender == e.Origin {
+		return //Bounce of bounced messages are not allowed
+	}
+	omsg, err := os.Open(e.content)
+	if err != nil {
+		return
+	}
+	defer omsg.Close()
+	s := strings.SplitN(e.Sender, "@", 2)
+	msgid := newMsgId() + ".1"
+	path := path.Dir(e.content) + "/" + msgid
+	mfn := path + ".msg"
+	efn := path + "@" + s[len(s)-1] + "@0.env"
+	bmsg, err := os.Create(mfn)
+	if err != nil {
+		return
+	}
+	defer bmsg.Close()
+	var msg bytes.Buffer
+	msg.Write([]byte("From: " + e.Origin + "\r\n"))
+	msg.Write([]byte("To: " + e.Sender + "\r\n"))
+	msg.Write([]byte("Subject: Delivery Status Notification (Failure)\r\n"))
+	msg.Write([]byte("Message-ID: <" + msgid + ">\r\n"))
+	msg.Write([]byte("Date: " + time.Now().String() + "\r\n"))
+	msg.Write([]byte("Content-Type: text/plain; charset=ISO-8859-1\r\n"))
+	msg.Write([]byte("Content-Transfer-Encoding: quoted-printable\r\n\r\n"))
+	msg.Write([]byte("Delivery to the following recipient(s) failed:\r\n\r\n"))
+	for _, r := range rcpts {
+		msg.Write([]byte("    " + r + "\r\n"))
+	}
+	msg.Write([]byte(fmt.Sprintf("\r\nWe have tried to deliver this message for %d time(s), and=\r\n", e.Attempted)))
+	msg.Write([]byte("the last error encountered was: \r\n\r\n"))
+	msg.Write([]byte("    " + errmsg + "\r\n\r\n"))
+	msg.Write([]byte("Please check if you have used correct recpient address, or=\r\n"))
+	msg.Write([]byte("contact the other email provider for further information=\r\n"))
+	msg.Write([]byte("about the course of this error.\r\n"))
+	msg.Write([]byte("\r\n----- Original message -----\r\n\r\n"))
+	msg.Write([]byte("TODO: read header of original message"))
+	msg.WriteTo(bmsg)
+	//todo: check error of the writeto!
+	benv, err := os.Create(efn)
+	if err != nil {
+		return
+	}
+	defer benv.Close()
+	env := envelope{
+		Sender:     e.Origin,
+		Recipients: []string{e.Sender},
+		Attempted:  0,
+		Origin:     e.Origin,
+	}
+	enc := json.NewEncoder(benv)
+	err = enc.Encode(&env)
+	if err != nil {
+		os.Remove(mfn)
+		os.Remove(efn)
+	}
+	return
 }

@@ -12,6 +12,7 @@ import (
 func fatal(err error) bool {
 	return strings.HasPrefix(err.Error(), "5")
 }
+
 func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 	if server[len(server)-1] == '.' {
 		server = server[:len(server)-1]
@@ -76,7 +77,7 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 }
 
 func sendMail(file string, ss *Settings) {
-	env, err := loadEnvelope(file, 3600)
+	env, err := LoadEnvelope(file, 3600)
 	defer func() {
 		if env != nil {
 			for d, e := range env.errors {
