@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	//"errors"
 	"fmt"
 	"os"
 	"path"
@@ -82,20 +81,27 @@ func (e *envelope) log(rcpt string, msg string, fatal bool) {
 	}
 }
 
-func (e *envelope) flush(ss *Settings) {
-	ss.Log("TODO: update envelope")
+func (e *envelope) flush() {
+	e.Log("TODO: update envelope")
+	//TODO: increase env.Attempted!
 	if e.file == "" {
-		ss.Debugf("Attempted to flush a flushed envelope")
+		e.Debugf("Attempted to flush a flushed envelope")
 		return 
 	}
 	for d, msg := range e.errors {		
-		ss.Log("TODO: process error: " + d + "=" + msg)
+		e.Log("TODO: process error: " + d + "=" + msg)
 	}
 	e.file = ""
 	return
 }
 
-func (e envelope) bounce(rcpts []string, errmsg string) (err error) {
+func (e envelope) bounce(rcpts []string, errmsg string) {
+	var err error
+	defer func() {
+		if err != nil {
+			e.Log("RUNERR: " + err.Error())
+		}
+	}()
 	if e.Sender == e.Origin {
 		return //Bounce of bounced messages are not allowed
 	}
@@ -166,3 +172,4 @@ func (e envelope) bounce(rcpts []string, errmsg string) (err error) {
 	}
 	return
 }
+

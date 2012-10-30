@@ -19,7 +19,7 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) {
 		if cs != nil {
 			cs.Close()
 		}
-		env.flush(ss)
+		env.flush()
 	}()
 	if err != nil {
 		env.log("", err.Error(), false)
@@ -74,7 +74,6 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) {
 }
 
 func sendMail(file string, ss *Settings) {
-	//TODO: increase env.Attempted!
 	env := loadEnvelope(file, ss)
 	if env == nil {
 		return
@@ -82,10 +81,7 @@ func sendMail(file string, ss *Settings) {
 	mxs, err := net.LookupMX(env.domain)
 	if err != nil {
 		ss.Debugf("GetMX: %v", err)
-		err = env.bounce([]string{env.Sender}, err.Error())
-		if err != nil {
-			ss.Log("RUNERR: " + err.Error())
-		}	
+		env.bounce([]string{env.Sender}, err.Error())
 		return
 	}
 	msg, err := os.Open(env.content)
@@ -96,8 +92,8 @@ func sendMail(file string, ss *Settings) {
 	defer msg.Close()
 	for _, mx := range mxs {
 		msg.Seek(0, 0)
-		if send(mx.Host, env, msg, ss) {
-			env.errors = make(map[string]string)
+		send(mx.Host, env, msg, ss)
+		if len(env.errors) == 0 {
 			break
 		}
 	}
