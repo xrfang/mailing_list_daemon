@@ -12,21 +12,21 @@ import (
 
 type cliSession struct {
 	server string
-	conn   net.Conn
 	reader *bufio.Reader
 	lg     log4g.Logger
+	net.Conn
 }
 
 func (s *cliSession) act(cmd string, expect string) error {
 	if len(cmd) > 0 {
 		s.lg.Debug(s.server + "> " + cmd)
-		_, err := s.conn.Write([]byte(cmd + "\r\n"))
+		_, err := s.Write([]byte(cmd + "\r\n"))
 		if err != nil {
 			return err
 		}
 	}
 	for {
-		s.conn.SetDeadline(time.Now().Add(5 * time.Minute))
+		s.SetDeadline(time.Now().Add(5 * time.Minute))
 		msg, long, err := s.reader.ReadLine()
 		if len(msg) == 0 {
 			continue
@@ -56,20 +56,16 @@ func (s *cliSession) act(cmd string, expect string) error {
 	return nil
 }
 
-func (s cliSession) close() {
-	s.conn.Close()
-}
-
 func NewCliSession(server string, logger log4g.Logger) (*cliSession, error) {
 	conn, err := net.Dial("tcp", server+":25")
 	if err != nil {
 		return nil, err
 	}
 	cs := &cliSession{
-		server: server,
-		conn:   conn,
-		reader: bufio.NewReader(conn),
-		lg:     logger,
+		server,
+		bufio.NewReader(conn),
+		logger,
+		conn,
 	}
 	err = cs.act("", "2")
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
+	//"errors"
 	"fmt"
 	"os"
 	"path"
@@ -22,49 +22,56 @@ type envelope struct {
 	file       string
 	content    string
 	errors     map[string]string
+	*Settings
 }
 
-func LoadEnvelope(file string, lock uint32) (*envelope, error) {
+func loadEnvelope(file string, ss *Settings) *envelope {
+	var err error
+	var env envelope
+	defer func() {
+		if err != nil {
+			ss.Log("RUNERR: " + err.Error())
+		}
+	}()
 	p := strings.Split(file, "@")
 	ts, err := strconv.ParseInt(p[2][0:len(p[2])-4], 36, 64)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	now := time.Now().Unix()
 	if ts > now {
-		//the scheduled time for this mail is not reached yet
-		return nil, nil
+		ss.Debug("On hold: " + path.Base(file))
+		return nil //scheduled time for this mail is not reached yet
 	}
-	var env envelope
 	ef, err := os.OpenFile(file, os.O_RDWR, 0600)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	defer ef.Close()
 	msg := p[0] + ".msg"
 	mf, err := os.OpenFile(msg, os.O_RDWR, 0600)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	mf.Close()
 	dec := json.NewDecoder(ef)
 	err = dec.Decode(&env)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	ef.Close()
-	if lock > 0 {
-		now += int64(lock)
-		newfile := fmt.Sprintf("%s@%s@%s.env", p[0], p[1], strconv.FormatInt(now, 36))
-		err = os.Rename(file, newfile)
-		env.file = newfile
-	} else {
-		env.file = file
+	now += int64(3600) //TODO: add locking period to Settings!
+	newfile := fmt.Sprintf("%s@%s@%s.env", p[0], p[1], strconv.FormatInt(now, 36))
+	err = os.Rename(file, newfile)
+	if err != nil {
+		return nil
 	}
+	env.file = newfile
 	env.content = msg
 	env.domain = p[1]
 	env.errors = make(map[string]string)
-	return &env, err
+	env.Settings = ss
+	return &env
 }
 
 func (e *envelope) log(rcpt string, msg string, fatal bool) {
@@ -75,19 +82,20 @@ func (e *envelope) log(rcpt string, msg string, fatal bool) {
 	}
 }
 
-func (e *envelope) flush(ss *Settings) error {
+func (e *envelope) flush(ss *Settings) {
 	ss.Log("TODO: update envelope")
 	if e.file == "" {
-		return errors.New("Attempted to flush a flushed envelope")
+		ss.Debugf("Attempted to flush a flushed envelope")
+		return 
 	}
-	for d, msg := range e.errors {
+	for d, msg := range e.errors {		
 		ss.Log("TODO: process error: " + d + "=" + msg)
 	}
 	e.file = ""
-	return nil
+	return
 }
 
-func (e envelope) Bounce(rcpts []string, errmsg string) (err error) {
+func (e envelope) bounce(rcpts []string, errmsg string) (err error) {
 	if e.Sender == e.Origin {
 		return //Bounce of bounced messages are not allowed
 	}

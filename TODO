@@ -4,20 +4,22 @@ Tasks in the order of priority:
 
 - Remove succesfully sent messages
 
-- Add AccessControl, allow relay to any address from allowed IP and FROM address
-
 - Allow pass-through of mails sent to "postmaster"
+
+- Add AccessControl, allow relay to any address from allowed IP and FROM address
 
 - Research anti-spam protocols including SPF, X-Originating-IP and Sender (RFC5322)
 
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
 
+- Consider prevention of loopholes in configuration file
+
+- Implement SIZE (RFC1870)
+
 - Implement multi-language template for bounce messages
 
 - Implement STARTTLS (RFC3207)
-
-- Implement SIZE (RFC1870)
 
 - Consider using Lua as a configuration language:
   http://code.google.com/p/glua/

@@ -13,24 +13,22 @@ func fatal(err error) bool {
 	return strings.HasPrefix(err.Error(), "5")
 }
 
-func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
-	if server[len(server)-1] == '.' {
-		server = server[:len(server)-1]
-	}
+func send(server string, env *envelope, msg *os.File, ss *Settings) {
 	cs, err := NewCliSession(server, ss)
 	defer func() {
 		if cs != nil {
-			cs.close()
+			cs.Close()
 		}
+		env.flush(ss)
 	}()
 	if err != nil {
 		env.log("", err.Error(), false)
-		return false
+		return
 	}
 	err = cs.act("MAIL FROM:<"+env.Origin+">", "2")
 	if err != nil {
 		env.log("", err.Error(), fatal(err))
-		return false
+		return
 	}
 	rcnt := 0
 	for _, r := range env.Recipients {
@@ -45,7 +43,7 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 		err = cs.act("DATA", "3")
 		if err != nil {
 			env.log("", err.Error(), fatal(err))
-			return false
+			return
 		}
 		buf := make([]byte, 65536)
 		cnt := 0
@@ -55,57 +53,43 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) bool {
 			if in == 0 {
 				break
 			}
-			_, err = cs.conn.Write(buf[:in])
+			_, err = cs.Write(buf[:in])
 			if err != nil {
 				env.log("", err.Error(), false)
-				return false
+				return
 			}
 		}
 		ss.Debugf("%s> %s (%d bytes)", server, path.Base(env.content), cnt)
 		err = cs.act("\r\n.", "2")
 		if err != nil {
 			env.log("", err.Error(), fatal(err))
-			return false
+			return
 		}
 	}
 	err = cs.act("QUIT", "2")
 	if err != nil {
 		env.log("", err.Error(), fatal(err))
-		return false
 	}
-	return true
+	return
 }
 
 func sendMail(file string, ss *Settings) {
-	env, err := LoadEnvelope(file, 3600)
-	defer func() {
-		if env != nil {
-			for d, e := range env.errors {
-				ss.Logf("  %s:%s", d, e)
-			}
-			err = env.flush(ss)
-			if err != nil {
-				ss.Log("RUNERR: " + err.Error())
-			}
-		}
-	}()
-	if err != nil {
-		ss.Log("RUNERR: " + err.Error())
-		return
-	}
+	//TODO: increase env.Attempted!
+	env := loadEnvelope(file, ss)
 	if env == nil {
-		ss.Debug("On hold: " + path.Base(file))
 		return
 	}
 	mxs, err := net.LookupMX(env.domain)
 	if err != nil {
-		env.log("", err.Error(), true)
 		ss.Debugf("GetMX: %v", err)
+		err = env.bounce([]string{env.Sender}, err.Error())
+		if err != nil {
+			ss.Log("RUNERR: " + err.Error())
+		}	
 		return
 	}
 	msg, err := os.Open(env.content)
 	if err != nil {
-		env.log("", err.Error(), true)
 		ss.Log("RUNERR: " + err.Error())
 		return
 	}
