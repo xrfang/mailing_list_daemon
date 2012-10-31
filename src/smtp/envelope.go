@@ -65,6 +65,7 @@ func loadEnvelope(file string, ss *Settings) *envelope {
 	if err != nil {
 		return nil
 	}
+	env.Attempted += 1
 	env.file = newfile
 	env.content = msg
 	env.domain = p[1]
@@ -81,40 +82,66 @@ func (e *envelope) log(rcpt string, msg string, fatal bool) {
 	}
 }
 
-func (e *envelope) flush() {
-	e.Log("TODO: update envelope")
-	//TODO: increase env.Attempted!
+func (e *envelope) flush(final bool) {
 	if e.file == "" {
-		e.Debugf("Attempted to flush a flushed envelope")
-		return 
+		return
 	}
-	for d, msg := range e.errors {		
-		e.Log("TODO: process error: " + d + "=" + msg)
-	}
+	//TODO: save envelope
 	e.file = ""
+	if final {
+		e.Attempted += 1
+	}
+	var (
+		rcpts []string
+		errmsg string
+	)
+	errmsg, found := e.errors[""]
+	if found {
+		if errmsg[0] == '!' || e.Attempted >= len(e.Retries) {
+			e.bounce(e.Recipients, errmsg[1:], 0)
+			//TODO: REMOVE envelope
+		}
+	} else {
+		for r, msg := range e.errors {
+			if msg[0] == '!' {
+				e.bounce([]string{r}, msg[1:], 0)
+				delete(e.errors, r)
+			}
+		}
+	}
 	return
 }
 
-func (e envelope) bounce(rcpts []string, errmsg string) {
-	var err error
-	defer func() {
-		if err != nil {
-			e.Log("RUNERR: " + err.Error())
-		}
-	}()
+func (e envelope) bounce(failed []string, errmsg string, route int) {
 	if e.Sender == e.Origin {
 		return //Bounce of bounced messages are not allowed
 	}
+	var (
+		err error
+		dest string
+	)
+	s := strings.SplitN(dest, "@", 2)
+	msgid := newMsgId() + ".0"
+	path := path.Dir(e.content) + "/" + msgid
+	mfn := path + ".msg"
+	efn := path + "@" + s[len(s)-1] + "@0.env"
+	if route == 0 {
+		dest = e.Sender //TODO: Get Return-Path
+	} else {
+		dest = e.Origin
+	}
+	defer func() {
+		if err != nil {
+			e.Log("RUNERR: " + err.Error())
+			os.Remove(mfn)
+			os.Remove(efn)
+		}
+	}()
 	omsg, err := os.Open(e.content)
 	if err != nil {
 		return
 	}
 	defer omsg.Close()
-	s := strings.SplitN(e.Sender, "@", 2)
-	msgid := newMsgId() + ".1"
-	path := path.Dir(e.content) + "/" + msgid
-	mfn := path + ".msg"
-	efn := path + "@" + s[len(s)-1] + "@0.env"
 	bmsg, err := os.Create(mfn)
 	if err != nil {
 		return
@@ -122,22 +149,26 @@ func (e envelope) bounce(rcpts []string, errmsg string) {
 	defer bmsg.Close()
 	var msg bytes.Buffer
 	msg.Write([]byte("From: " + e.Origin + "\r\n"))
-	msg.Write([]byte("To: " + e.Sender + "\r\n"))
+	msg.Write([]byte("To: " + dest + "\r\n"))
 	msg.Write([]byte("Subject: Delivery Status Notification (Failure)\r\n"))
 	msg.Write([]byte("Message-ID: <" + msgid + ">\r\n"))
 	msg.Write([]byte("Date: " + time.Now().String() + "\r\n"))
 	msg.Write([]byte("Content-Type: text/plain; charset=ISO-8859-1\r\n"))
 	msg.Write([]byte("Content-Transfer-Encoding: quoted-printable\r\n\r\n"))
 	msg.Write([]byte("Delivery to the following recipient(s) failed:\r\n\r\n"))
-	for _, r := range rcpts {
+	for _, r := range failed {
 		msg.Write([]byte("    " + r + "\r\n"))
 	}
-	msg.Write([]byte(fmt.Sprintf("\r\nWe have tried to deliver this message for %d time(s), and=\r\n", e.Attempted)))
-	msg.Write([]byte("the last error encountered was: \r\n\r\n"))
+	msg.Write([]byte("\r\nWe have tried our best to deliver this message, unfortunately=\r\n"))
+	msg.Write([]byte("it didn't work.  The last error encountered was:\r\n\r\n"))
 	msg.Write([]byte("    " + errmsg + "\r\n\r\n"))
 	msg.Write([]byte("Please check if you have used correct recpient address, or=\r\n"))
-	msg.Write([]byte("contact the other email provider for further information=\r\n"))
-	msg.Write([]byte("about the course of this error.\r\n"))
+	if route == 0 {
+		msg.Write([]byte("contact the other email provider for further information=\r\n"))
+	} else {
+		msg.Write([]byte("contact " + e.Origin + " for further information=\r\n"))
+	}
+	msg.Write([]byte("about the cause of this error.\r\n"))
 	msg.Write([]byte("\r\n----- Original message -----\r\n\r\n"))
 	br := bufio.NewReader(omsg)
 	cnt := 0
@@ -160,16 +191,12 @@ func (e envelope) bounce(rcpts []string, errmsg string) {
 	defer benv.Close()
 	env := envelope{
 		Sender:     e.Origin,
-		Recipients: []string{e.Sender},
+		Recipients: []string{dest},
 		Attempted:  0,
 		Origin:     e.Origin,
 	}
 	enc := json.NewEncoder(benv)
 	err = enc.Encode(&env)
-	if err != nil {
-		os.Remove(mfn)
-		os.Remove(efn)
-	}
 	return
 }
 

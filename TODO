@@ -2,7 +2,8 @@ Tasks in the order of priority:
 
 - Process retry and bounce
   - clear error if bounced;
-  - in case of RUNERR, try bounce to postmaster as well; 
+  - in case of RUNERR, try bounce to postmaster as well;
+  - check whether to remove original message after bounce
 
 - Remove succesfully sent messages
 
