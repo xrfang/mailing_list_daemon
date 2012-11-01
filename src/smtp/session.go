@@ -302,7 +302,12 @@ func (s *svrSession) handle(cmdline []byte) string {
 	} else {
 		s.data += len(cmdstr)
 		if cmdstr == "." {
-			s.Debugf("%s> Received %d bytes", s.CliAddr(), s.data)
+			caddr := s.CliAddr()
+			s.Debugf("%s> Received %d bytes", caddr, s.data)
+			s.Debugf("%s> Message queued for %d recipients: ", caddr, len(s.recipients))
+			for r, _ := range s.recipients {
+				s.Debugf("%s>   %s", caddr, r)
+			}
 			s.Reset(PROC_QUEUED)
 			return "250 OK"
 		} else {
