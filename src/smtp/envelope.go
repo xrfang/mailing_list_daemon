@@ -39,8 +39,9 @@ func loadEnvelope(file string, ss *Settings) *envelope {
 	}
 	now := time.Now().Unix()
 	if ts > now {
+		p := strings.Split(path.Base(file), "@")
 		until := time.Unix(ts, 0)
-		ss.Debugf("[%s] on hold until %s", path.Base(file), until.Format("15:04:05, Jan 2"))
+		ss.Debugf("[%s@%s] on hold until %s", p[0], p[1], until.Format("15:04:05, Jan 2"))
 		return nil //scheduled time for this mail is not reached yet
 	}
 	ef, err := os.OpenFile(file, os.O_RDWR, 0600)
