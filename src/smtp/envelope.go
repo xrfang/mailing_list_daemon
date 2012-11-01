@@ -185,11 +185,11 @@ func (e envelope) bounce(failed []string, errmsg string) {
 	for _, r := range failed {
 		msg.Write([]byte("    " + r + "\r\n"))
 	}
-	msg.Write([]byte("\r\nWe have tried our best to deliver this message, unfortunately=\r\n"))
+	msg.Write([]byte("\r\nWe have tried our best to deliver this message, unfortunately =\r\n"))
 	msg.Write([]byte("it didn't work.  The last error encountered was:\r\n\r\n"))
 	msg.Write([]byte("    " + errmsg + "\r\n\r\n"))
-	msg.Write([]byte("Please check if you have used correct recpient address, or=\r\n"))
-	msg.Write([]byte("contact the other email provider for further information=\r\n"))
+	msg.Write([]byte("Please check if you have used correct recpient address, or =\r\n"))
+	msg.Write([]byte("contact the other email provider for further information =\r\n"))
 	msg.Write([]byte("about the cause of this error.\r\n"))
 	msg.Write([]byte("\r\n----- Original message -----\r\n\r\n"))
 	br := bufio.NewReader(omsg)
