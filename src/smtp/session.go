@@ -55,6 +55,7 @@ type svrSession struct {
 	sender     string
 	recipients map[string]byte
 	file       *os.File
+	data       int
 	p_errs     byte //protocol errors (e.g. syntex error, command out-of-order)
 	r_errs     byte //relay errors
 	*Settings
@@ -222,6 +223,7 @@ func (s *svrSession) prep() error {
 	if err == nil {
 		_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + fromDomain + "; " + time.Now().String()))
 	}
+	s.data = 0
 	return nil
 }
 
@@ -298,8 +300,9 @@ func (s *svrSession) handle(cmdline []byte) string {
 			return "502 Command not implemented"
 		}
 	} else {
-		s.Debug(s.CliAddr() + "> " + cmdstr)
+		s.data += len(cmdstr)
 		if cmdstr == "." {
+			s.Debugf("%s> Received %d bytes", s.CliAddr(), s.data)
 			s.Reset(PROC_QUEUED)
 			return "250 OK"
 		} else {
@@ -349,6 +352,7 @@ func NewSvrSession(conn net.Conn, env *Settings) (*svrSession, error) {
 		"", //sender
 		make(map[string]byte), //recipients
 		nil,                   //file
+		0,                     //data
 		0,                     //p_errs
 		0,                     //r_errs
 		env,                   //Settings
