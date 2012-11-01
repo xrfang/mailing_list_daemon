@@ -1,15 +1,13 @@
 Tasks in the order of priority:
 
-- Allow pass-through of mails sent to "postmaster"
-
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
 
-- Research anti-spam protocols including SPF, X-Originating-IP and Sender (RFC5322)
+- Periodic wiping of expired messages
 
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
 
-- Periodic wiping of expired messages
+- While reporting error by bounce message, consider link the address to its original list name
 
 - Improve syslog4g to allow prioritized log messages (i.e. use different facilities to allow different rotating strategy)
 
