@@ -82,23 +82,22 @@ func sendMail(file string, ss *Settings) {
 	msg, err := os.Open(env.content)
 	if err != nil {
 		ss.Log("RUNERR: " + err.Error())
-		env.bounce(env.Recipients, err.Error(), 0)
-		env.bounce(env.Recipients, err.Error(), 1)
+		env.log("", err.Error(), false)
 		return
 	}
 	defer msg.Close()
 	mxs, err := net.LookupMX(env.domain)
 	if err != nil {
 		ss.Debugf("GetMX: %v", err)
-		env.bounce(env.Recipients, err.Error(), 0)
+		env.log("", err.Error(), true)
 		return
 	}
 	for _, mx := range mxs {
-		msg.Seek(0, 0)		
-		send(mx.Host, env, msg, ss)
-		if len(env.errors) == 0 {
+		if len(env.Recipients) == 0 {
 			break
 		}
+		msg.Seek(0, 0)
+		send(mx.Host, env, msg, ss)
 	}
 }
 

@@ -59,7 +59,7 @@ func loadEnvelope(file string, ss *Settings) *envelope {
 		return nil
 	}
 	ef.Close()
-	now += int64(3600) //TODO: add locking period to Settings!
+	now += int64(ss.SendLock)
 	newfile := fmt.Sprintf("%s@%s@%s.env", p[0], p[1], strconv.FormatInt(now, 36))
 	err = os.Rename(file, newfile)
 	if err != nil {
@@ -86,50 +86,76 @@ func (e *envelope) flush(final bool) {
 	if e.file == "" {
 		return
 	}
-	//TODO: save envelope
-	e.file = ""
 	if final {
 		e.Attempted += 1
 	}
-	var (
-		rcpts []string
-		errmsg string
-	)
 	errmsg, found := e.errors[""]
 	if found {
-		if errmsg[0] == '!' || e.Attempted >= len(e.Retries) {
-			e.bounce(e.Recipients, errmsg[1:], 0)
-			//TODO: REMOVE envelope
+		if errmsg[0] == '!' || e.Attempted > len(e.Retries) {
+			e.bounce(e.Recipients, errmsg[1:])
+			e.Recipients = make([]string, 0)
 		}
 	} else {
 		for r, msg := range e.errors {
 			if msg[0] == '!' {
-				e.bounce([]string{r}, msg[1:], 0)
+				e.bounce([]string{r}, msg[1:])
 				delete(e.errors, r)
 			}
 		}
+		if e.Attempted > len(e.Retries) {
+			for r, msg := range e.errors {
+				e.bounce([]string{r}, msg[1:])
+				delete(e.errors, r)
+			}
+		}
+		e.Recipients = make([]string, len(e.errors))
+		for r, _ := range e.errors {
+			e.Recipients = append(e.Recipients, r)
+		}
+	}
+	rcnt := len(e.Recipients)
+	if rcnt > 0 {
+		var delay int
+		if final {
+			delay = e.Retries[e.Attempted-1]
+		} else {
+			delay = e.SendLock
+		}
+		next := time.Now().Unix() + int64(delay)
+		p := strings.Split(e.file, "@")
+		newfile := fmt.Sprintf("%s@%s@%s.env", p[0], p[1], strconv.FormatInt(next, 36))
+		e.Debugf("%s: %d recipients remained, next attempt in %d seconds", path.Base(e.file), rcnt, delay)
+		f, err := os.Create(newfile)
+		if err == nil {
+			defer f.Close()
+			enc := json.NewEncoder(f)
+			if err = enc.Encode(e); err == nil {
+				os.Remove(e.file)
+				e.file = newfile
+			} else {
+				e.Log("RUNERR: " + err.Error())
+			}
+		} else {
+			e.Log("RUNERR: " + err.Error())
+		}
+	} else {
+		e.Debug("No more recipients, removing: " + path.Base(e.file))
+		os.Remove(e.file)
+		e.file = ""
 	}
 	return
 }
 
-func (e envelope) bounce(failed []string, errmsg string, route int) {
+func (e envelope) bounce(failed []string, errmsg string) {
 	if e.Sender == e.Origin {
 		return //Bounce of bounced messages are not allowed
 	}
-	var (
-		err error
-		dest string
-	)
-	s := strings.SplitN(dest, "@", 2)
+	var err error
+	s := strings.SplitN(e.Sender, "@", 2)
 	msgid := newMsgId() + ".0"
 	path := path.Dir(e.content) + "/" + msgid
 	mfn := path + ".msg"
 	efn := path + "@" + s[len(s)-1] + "@0.env"
-	if route == 0 {
-		dest = e.Sender //TODO: Get Return-Path
-	} else {
-		dest = e.Origin
-	}
 	defer func() {
 		if err != nil {
 			e.Log("RUNERR: " + err.Error())
@@ -149,7 +175,7 @@ func (e envelope) bounce(failed []string, errmsg string, route int) {
 	defer bmsg.Close()
 	var msg bytes.Buffer
 	msg.Write([]byte("From: " + e.Origin + "\r\n"))
-	msg.Write([]byte("To: " + dest + "\r\n"))
+	msg.Write([]byte("To: " + e.Sender + "\r\n"))
 	msg.Write([]byte("Subject: Delivery Status Notification (Failure)\r\n"))
 	msg.Write([]byte("Message-ID: <" + msgid + ">\r\n"))
 	msg.Write([]byte("Date: " + time.Now().String() + "\r\n"))
@@ -163,11 +189,7 @@ func (e envelope) bounce(failed []string, errmsg string, route int) {
 	msg.Write([]byte("it didn't work.  The last error encountered was:\r\n\r\n"))
 	msg.Write([]byte("    " + errmsg + "\r\n\r\n"))
 	msg.Write([]byte("Please check if you have used correct recpient address, or=\r\n"))
-	if route == 0 {
-		msg.Write([]byte("contact the other email provider for further information=\r\n"))
-	} else {
-		msg.Write([]byte("contact " + e.Origin + " for further information=\r\n"))
-	}
+	msg.Write([]byte("contact the other email provider for further information=\r\n"))
 	msg.Write([]byte("about the cause of this error.\r\n"))
 	msg.Write([]byte("\r\n----- Original message -----\r\n\r\n"))
 	br := bufio.NewReader(omsg)
@@ -191,7 +213,7 @@ func (e envelope) bounce(failed []string, errmsg string, route int) {
 	defer benv.Close()
 	env := envelope{
 		Sender:     e.Origin,
-		Recipients: []string{dest},
+		Recipients: []string{e.Sender},
 		Attempted:  0,
 		Origin:     e.Origin,
 	}
@@ -199,4 +221,3 @@ func (e envelope) bounce(failed []string, errmsg string, route int) {
 	err = enc.Encode(&env)
 	return
 }
-

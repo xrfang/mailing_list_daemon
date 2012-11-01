@@ -1,12 +1,5 @@
 Tasks in the order of priority:
 
-- Process retry and bounce
-  - clear error if bounced;
-  - in case of RUNERR, try bounce to postmaster as well;
-  - check whether to remove original message after bounce
-
-- Remove succesfully sent messages
-
 - Allow pass-through of mails sent to "postmaster"
 
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
@@ -15,6 +8,10 @@ Tasks in the order of priority:
 
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
+
+- Periodic wiping of expired messages
+
+- Improve syslog4g to allow prioritized log messages (i.e. use different facilities to allow different rotating strategy)
 
 - Consider prevention of loopholes in configuration file
 
