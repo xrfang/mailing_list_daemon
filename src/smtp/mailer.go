@@ -22,19 +22,19 @@ func send(server string, env *envelope, msg *os.File) {
 		env.flush(false)
 	}()
 	if err != nil {
-		env.log("", err.Error(), false)
+		env.recErr("", err.Error(), false)
 		return
 	}
 	err = cs.act("MAIL FROM:<"+env.Origin+">", "2")
 	if err != nil {
-		env.log("", err.Error(), fatal(err))
+		env.recErr("", err.Error(), fatal(err))
 		return
 	}
 	rcnt := 0
 	for _, r := range env.Recipients {
 		err = cs.act("RCPT TO:<"+r+">", "2")
 		if err != nil {
-			env.log(r, err.Error(), fatal(err))
+			env.recErr(r, err.Error(), fatal(err))
 			continue
 		}
 		rcnt++
@@ -42,7 +42,7 @@ func send(server string, env *envelope, msg *os.File) {
 	if rcnt > 0 {
 		err = cs.act("DATA", "3")
 		if err != nil {
-			env.log("", err.Error(), fatal(err))
+			env.recErr("", err.Error(), fatal(err))
 			return
 		}
 		buf := make([]byte, 65536)
@@ -55,20 +55,20 @@ func send(server string, env *envelope, msg *os.File) {
 			}
 			_, err = cs.Write(buf[:in])
 			if err != nil {
-				env.log("", err.Error(), false)
+				env.recErr("", err.Error(), false)
 				return
 			}
 		}
 		env.Debugf("%s> %s (%d bytes)", server, path.Base(env.content), cnt)
 		err = cs.act("\r\n.", "2")
 		if err != nil {
-			env.log("", err.Error(), fatal(err))
+			env.recErr("", err.Error(), fatal(err))
 			return
 		}
 	}
 	err = cs.act("QUIT", "2")
 	if err != nil {
-		env.log("", err.Error(), fatal(err))
+		env.recErr("", err.Error(), fatal(err))
 	}
 	return
 }
@@ -81,15 +81,15 @@ func sendMail(file string, ss *Settings) {
 	defer env.flush(true)
 	msg, err := os.Open(env.content)
 	if err != nil {
-		ss.Log("RUNERR: " + err.Error())
-		env.log("", err.Error(), false)
+		env.Log("RUNERR: " + err.Error())
+		env.recErr("", err.Error(), false)
 		return
 	}
 	defer msg.Close()
 	mxs, err := net.LookupMX(env.domain)
 	if err != nil {
-		ss.Debugf("GetMX: %v", err)
-		env.log("", err.Error(), true)
+		env.Debugf("GetMX: %v", err)
+		env.recErr("", err.Error(), true)
 		return
 	}
 	for _, mx := range mxs {

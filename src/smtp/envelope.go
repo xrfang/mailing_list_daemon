@@ -76,7 +76,7 @@ func loadEnvelope(file string, ss *Settings) *envelope {
 	return &env
 }
 
-func (e *envelope) log(rcpt string, msg string, fatal bool) {
+func (e *envelope) recErr(rcpt string, msg string, fatal bool) {
 	if fatal {
 		e.errors[rcpt] = "!" + msg
 	} else {
