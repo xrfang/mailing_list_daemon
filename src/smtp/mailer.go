@@ -6,7 +6,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 func fatal(err error) bool {
@@ -102,13 +104,42 @@ func sendMail(file string, ss *Settings) {
 }
 
 func SendMails(spool string, ss *Settings) {
-	envelopes, err := filepath.Glob(spool + "/*.env")
+	ecnt := 0
+	files, err := filepath.Glob(spool + "/*.*")
 	if err == nil {
-		ss.Debugf("SendMails: queued_messages=%v", len(envelopes))
-		for _, e := range envelopes {
-			go sendMail(e, ss)
+		for _, f := range files {
+			fn := path.Base(f)
+			if strings.HasSuffix(f, ".env") {
+				p := strings.Split(fn, "@")
+				p = strings.Split(p[0], ".")
+				ts, err := strconv.ParseInt(p[0], 36, 64)
+				if err == nil {
+					if ts+int64(ss.expire) <= time.Now().Unix() {
+						ss.Debugf("SendMail: removing obsolete envelope: " + fn)
+						err = os.Remove(f)
+						if err != nil {
+							ss.Logf("RUNERR: %v", err)
+						}
+					} else {
+						ecnt++
+						go sendMail(f, ss)
+					}
+				} else {
+					ss.Logf("RUNERR: invalid envelope: %s", fn)
+				}
+			} else {
+				env, _ := filepath.Glob(f[0:len(f)-4] + "@*.env")
+				if len(env) == 0 {
+					ss.Debugf("SendMail: removing obsolete message: " + fn)
+					err = os.Remove(f)
+					if err != nil {
+						ss.Logf("RUNERR: %v", err)
+					}
+				}
+			}
 		}
+		ss.Debugf("SendMails: queued_messages=%v", ecnt)
 	} else {
-		ss.Log("RUNERR: " + err.Error())
+		ss.Logf("RUNERR: %v", err)
 	}
 }

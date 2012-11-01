@@ -1,12 +1,12 @@
 Tasks in the order of priority:
 
-- Periodic wiping of expired messages
+- Add self-check in Settings object (e.g. ensure Retries has at least one value, and are all positive)
 
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
 
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
-
+ 
 - Consider prevention of loopholes in configuration file
 
 - While reporting error by bounce message, consider link the address to its original list name

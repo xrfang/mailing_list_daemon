@@ -19,6 +19,7 @@ type Settings struct {
 	Retries   []int
 	SendLock  int
 	fileName  string
+	expire    int
 	*log4g.SysLogger
 }
 
@@ -47,7 +48,7 @@ func LoadSettings(filename string) (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
-	settings := Settings{
+	s := Settings{
 		"127.0.0.1",       //Bind
 		25,                //Port
 		1,                 //MaxCli
@@ -65,6 +66,7 @@ func LoadSettings(filename string) (*Settings, error) {
 		}, //Retries
 		3600, //SendLock
 		filename,
+		0, //expire
 		logger,
 	}
 	var f *os.File
@@ -74,7 +76,7 @@ func LoadSettings(filename string) (*Settings, error) {
 			f, err = os.Create(filename)
 			if err == nil {
 				defer f.Close()
-				s, err := json.MarshalIndent(settings, "", "\t")
+				s, err := json.MarshalIndent(s, "", "\t")
 				if err == nil {
 					f.Write(s)
 				}
@@ -83,15 +85,20 @@ func LoadSettings(filename string) (*Settings, error) {
 	} else {
 		defer f.Close()
 		dec := json.NewDecoder(f)
-		err = dec.Decode(&settings)
+		err = dec.Decode(&s)
 	}
 	if err == nil {
-		settings.Mode(settings.DebugMode)
-		settings.Spool = path.Clean(settings.Spool)
-		err = os.MkdirAll(settings.Spool+"/inbound", 0777)
+		s.Mode(s.DebugMode)
+		s.Spool = path.Clean(s.Spool)
+		err = os.MkdirAll(s.Spool+"/inbound", 0777)
 		if err == nil {
-			err = os.MkdirAll(settings.Spool+"/outbound", 0777)
+			err = os.MkdirAll(s.Spool+"/outbound", 0777)
 		}
 	}
-	return &settings, err
+	s.expire = 0
+	for _, d := range s.Retries {
+		s.expire += d
+	}
+	s.expire *= 2
+	return &s, err
 }
