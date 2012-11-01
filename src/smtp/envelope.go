@@ -67,7 +67,6 @@ func loadEnvelope(file string, ss *Settings) *envelope {
 	if err != nil {
 		return nil
 	}
-	env.Attempted += 1
 	env.file = newfile
 	env.content = msg
 	env.domain = p[1]
@@ -110,7 +109,7 @@ func (e *envelope) flush(final bool) {
 				delete(e.errors, r)
 			}
 		}
-		e.Recipients = make([]string, len(e.errors))
+		e.Recipients = make([]string, 0)
 		for r, _ := range e.errors {
 			e.Recipients = append(e.Recipients, r)
 		}
@@ -118,15 +117,17 @@ func (e *envelope) flush(final bool) {
 	rcnt := len(e.Recipients)
 	if rcnt > 0 {
 		var delay int
+		msg := fmt.Sprintf("%s: %d recipients remained,", path.Base(e.file), rcnt)
 		if final {
 			delay = e.Retries[e.Attempted-1]
+			e.Debugf("%s next attempt in %d seconds", msg, delay)
 		} else {
 			delay = e.SendLock
+			e.Debugf("%s lock for %d seconds", msg, delay)
 		}
 		next := time.Now().Unix() + int64(delay)
 		p := strings.Split(e.file, "@")
 		newfile := fmt.Sprintf("%s@%s@%s.env", p[0], p[1], strconv.FormatInt(next, 36))
-		e.Debugf("%s: %d recipients remained, next attempt in %d seconds", path.Base(e.file), rcnt, delay)
 		f, err := os.Create(newfile)
 		if err == nil {
 			defer f.Close()

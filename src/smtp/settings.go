@@ -32,7 +32,7 @@ func (s Settings) Dump() string {
 	return err.Error()
 }
 
-func (s Settings) domain(sender string) string {
+func (s Settings) originDomain(sender string) string {
 	for domain, ctrl := range s.RelayCtrl {
 		_, ok := ctrl[sender]
 		if ok {

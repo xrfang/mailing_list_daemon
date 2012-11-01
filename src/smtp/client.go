@@ -71,9 +71,11 @@ func NewCliSession(server string, env *envelope) (*cliSession, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = cs.act("EHLO "+env.domain, "2")
+	p := strings.Split(env.Origin, "@")
+	origin := p[len(p)-1]
+	err = cs.act("EHLO "+origin, "2")
 	if err != nil {
-		err = cs.act("HELO "+env.domain, "")
+		err = cs.act("HELO "+origin, "")
 	}
 	return cs, err
 }

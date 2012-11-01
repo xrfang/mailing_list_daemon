@@ -201,7 +201,7 @@ func (s *svrSession) prep() error {
 		p := strings.SplitN(r, "@", 2)
 		domains[p[1]] = append(domains[p[1]], r)
 	}
-	fromDomain := s.domain(s.sender)
+	fromDomain := s.originDomain(s.sender)
 	for d, u := range domains {
 		file, err := os.Create(fmt.Sprintf("%s/%d@%s@0.env", inbound, s.seq, d))
 		if err != nil {
