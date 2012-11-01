@@ -32,14 +32,14 @@ func (s Settings) Dump() string {
 	return err.Error()
 }
 
-func (s Settings) postmaster(sender string) string {
+func (s Settings) domain(sender string) string {
 	for domain, ctrl := range s.RelayCtrl {
 		_, ok := ctrl[sender]
 		if ok {
-			return "postmaster@" + domain
+			return domain
 		}
 	}
-	return "postmaster@[127.0.0.1]"
+	return "[127.0.0.1]"
 }
 
 func LoadSettings(filename string) (*Settings, error) {

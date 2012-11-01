@@ -200,6 +200,7 @@ func (s *svrSession) prep() error {
 		p := strings.SplitN(r, "@", 2)
 		domains[p[1]] = append(domains[p[1]], r)
 	}
+	fromDomain := s.domain(s.sender)
 	for d, u := range domains {
 		file, err := os.Create(fmt.Sprintf("%s/%d@%s@0.env", inbound, s.seq, d))
 		if err != nil {
@@ -210,7 +211,7 @@ func (s *svrSession) prep() error {
 			Sender:     s.sender,
 			Recipients: u,
 			Attempted:  0,
-			Origin:     s.postmaster(s.sender),
+			Origin:     "postmaster@" + fromDomain,
 		}
 		enc := json.NewEncoder(file)
 		if err = enc.Encode(&env); err != nil {
@@ -219,7 +220,7 @@ func (s *svrSession) prep() error {
 	}
 	s.file, err = os.Create(fmt.Sprintf("%s/%d.msg", inbound, s.seq))
 	if err == nil {
-		_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + s.svrAddr() + "; " + time.Now().String()))
+		_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + fromDomain + "; " + time.Now().String()))
 	}
 	return nil
 }
