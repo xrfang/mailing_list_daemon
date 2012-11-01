@@ -56,7 +56,7 @@ func (s *cliSession) act(cmd string, expect string) error {
 	return nil
 }
 
-func NewCliSession(server string, logger log4g.Logger) (*cliSession, error) {
+func NewCliSession(server string, env *envelope) (*cliSession, error) {
 	conn, err := net.Dial("tcp", server+":25")
 	if err != nil {
 		return nil, err
@@ -64,13 +64,16 @@ func NewCliSession(server string, logger log4g.Logger) (*cliSession, error) {
 	cs := &cliSession{
 		server,
 		bufio.NewReader(conn),
-		logger,
+		env.SysLogger,
 		conn,
 	}
 	err = cs.act("", "2")
 	if err != nil {
 		return nil, err
 	}
-	err = cs.act("EHLO localhost", "")
+	err = cs.act("EHLO "+env.domain, "2")
+	if err != nil {
+		err = cs.act("HELO "+env.domain, "")
+	}
 	return cs, err
 }

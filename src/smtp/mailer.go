@@ -13,8 +13,8 @@ func fatal(err error) bool {
 	return strings.HasPrefix(err.Error(), "5")
 }
 
-func send(server string, env *envelope, msg *os.File, ss *Settings) {
-	cs, err := NewCliSession(server, ss)
+func send(server string, env *envelope, msg *os.File) {
+	cs, err := NewCliSession(server, env)
 	defer func() {
 		if cs != nil {
 			cs.Close()
@@ -59,7 +59,7 @@ func send(server string, env *envelope, msg *os.File, ss *Settings) {
 				return
 			}
 		}
-		ss.Debugf("%s> %s (%d bytes)", server, path.Base(env.content), cnt)
+		env.Debugf("%s> %s (%d bytes)", server, path.Base(env.content), cnt)
 		err = cs.act("\r\n.", "2")
 		if err != nil {
 			env.log("", err.Error(), fatal(err))
@@ -97,7 +97,7 @@ func sendMail(file string, ss *Settings) {
 			break
 		}
 		msg.Seek(0, 0)
-		send(mx.Host, env, msg, ss)
+		send(mx.Host, env, msg)
 	}
 }
 
