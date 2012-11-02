@@ -95,10 +95,24 @@ func LoadSettings(filename string) (*Settings, error) {
 			err = os.MkdirAll(s.Spool+"/outbound", 0777)
 		}
 	}
-	s.expire = 0
-	for _, d := range s.Retries {
-		s.expire += d
+	if err == nil {
+		if s.MaxCli <= 0 {
+			s.MaxCli = 1
+		}
+		if s.SendLock < 3600 {
+			s.SendLock = 3600
+		}
+		s.expire = 0
+		for _, d := range s.Retries {
+			s.expire += d
+		}
+		s.expire *= 2
+		if s.expire < 0 {
+			s.Retries = []int{900, 1800, 3600, 7200, 14400, 28800, 57600}
+			s.expire = 228600
+		} else if s.expire < 3600 {
+			s.expire = 3600
+		}
 	}
-	s.expire *= 2
 	return &s, err
 }

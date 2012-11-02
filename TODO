@@ -1,23 +1,26 @@
-Tasks in the order of priority:
-
-- Add self-check in Settings object (e.g. ensure Retries has at least one value, and are all positive)
-
-- Try to use non-root user for better security:
-  http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
+Possible improvements (in order of priority):
 
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
- 
+
 - Consider prevention of loopholes in configuration file
 
 - While reporting error by bounce message, consider link the address to its original list name
 
-- Improve syslog4g to allow prioritized log messages (i.e. use different facilities to allow different rotating strategy)
+Further improvements (no plan for implementation yet):
 
-- Implement SIZE (RFC1870)
+- Try to use non-root user for better security:
+  http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
 
-- Implement multi-language template for bounce messages
+- Implement SIZE (RFC1870) (for auditing and usage count etc.)
+
+- Implement content scanning and filtering interface
 
 - Implement STARTTLS (RFC3207)
 
+- Improve syslog4g to allow prioritized log messages (i.e. use different facilities to allow different rotating strategy)
+
 - Consider using Lua as a configuration language:
   http://code.google.com/p/glua/
+
+- Implement multi-language template for bounce messages
+
