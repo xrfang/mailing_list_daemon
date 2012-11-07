@@ -1,5 +1,11 @@
 Possible improvements (in order of priority):
 
+- HOWTO:
+  - detatch from terminal on start
+  - process SIGHUP
+
+- Implement STARTTLS (RFC3207)
+  
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
 
 - Consider prevention of loopholes in configuration file
@@ -14,8 +20,6 @@ Further improvements (no plan for implementation yet):
 - Implement SIZE (RFC1870) (for auditing and usage count etc.)
 
 - Implement content scanning and filtering interface
-
-- Implement STARTTLS (RFC3207)
 
 - Improve syslog4g to allow prioritized log messages (i.e. use different facilities to allow different rotating strategy)
 
