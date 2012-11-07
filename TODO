@@ -1,18 +1,22 @@
 Possible improvements (in order of priority):
 
-- HOWTO:
-  - detatch from terminal on start
-  - process SIGHUP
-
-- Implement STARTTLS (RFC3207)
+- Implement client side (outbound) STARTTLS (ref. net/smtp)
   
 - Add AccessControl, allow relay to any address from allowed IP and FROM address
+
+- Process SIGHUP
 
 - Consider prevention of loopholes in configuration file
 
 - While reporting error by bounce message, consider link the address to its original list name
 
 Further improvements (no plan for implementation yet):
+
+- Implement AUTH (RFC2554)
+
+- Implement server side (inbound) STARTTLS (RFC3207)
+
+- Implement 8BITMIME (RFC1652)
 
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
@@ -21,10 +25,11 @@ Further improvements (no plan for implementation yet):
 
 - Implement content scanning and filtering interface
 
+- detatch from terminal on start
+
 - Improve syslog4g to allow prioritized log messages (i.e. use different facilities to allow different rotating strategy)
 
 - Consider using Lua as a configuration language:
   http://code.google.com/p/glua/
 
 - Implement multi-language template for bounce messages
-
