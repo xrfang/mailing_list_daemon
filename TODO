@@ -1,18 +1,22 @@
 Possible improvements (in order of priority):
+ 
+- Add Outbound Relay option so that all mails are relayed instead of delivered to destination directly
 
-- Implement client side (outbound) STARTTLS (ref. net/smtp)
-  
-- Add AccessControl, allow relay to any address from allowed IP and FROM address
+- Change RelayCtrl format, allow relay to any address from allowed IP or domain etc.
 
 - Process SIGHUP
 
 - Consider prevention of loopholes in configuration file
 
-- While reporting error by bounce message, consider link the address to its original list name
-
 Further improvements (no plan for implementation yet):
 
+- While reporting error by bounce message, consider link the address to its original list name
+
 - Implement AUTH (RFC2554)
+
+- Implement SIZE (RFC1870) (for auditing and usage count etc.)
+
+- Implement client side (outbound) STARTTLS (ref. net/smtp)
 
 - Implement server side (inbound) STARTTLS (RFC3207)
 
@@ -20,8 +24,6 @@ Further improvements (no plan for implementation yet):
 
 - Try to use non-root user for better security:
   http://stackoverflow.com/questions/413807/is-there-a-way-for-non-root-processes-to-bind-to-privileged-ports-1024-on-l
-
-- Implement SIZE (RFC1870) (for auditing and usage count etc.)
 
 - Implement content scanning and filtering interface
 
