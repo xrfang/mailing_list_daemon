@@ -27,14 +27,14 @@ func send(server string, env *envelope, msg *os.File) {
 		env.recErr("", err.Error(), false)
 		return
 	}
-	err = cs.act("MAIL FROM:<"+env.Origin+">", "2")
+	err, _ = cs.act("MAIL FROM:<"+env.Origin+">", "2")
 	if err != nil {
 		env.recErr("", err.Error(), fatal(err))
 		return
 	}
 	rcnt := 0
 	for _, r := range env.Recipients {
-		err = cs.act("RCPT TO:<"+r+">", "2")
+		err, _ = cs.act("RCPT TO:<"+r+">", "2")
 		if err != nil {
 			env.recErr(r, err.Error(), fatal(err))
 			continue
@@ -42,7 +42,7 @@ func send(server string, env *envelope, msg *os.File) {
 		rcnt++
 	}
 	if rcnt > 0 {
-		err = cs.act("DATA", "3")
+		err, _ = cs.act("DATA", "3")
 		if err != nil {
 			env.recErr("", err.Error(), fatal(err))
 			return
@@ -62,13 +62,13 @@ func send(server string, env *envelope, msg *os.File) {
 			}
 		}
 		env.Debugf("%s> %s (%d bytes)", server, path.Base(env.content), cnt)
-		err = cs.act("\r\n.", "2")
+		err, _ = cs.act("\r\n.", "2")
 		if err != nil {
 			env.recErr("", err.Error(), fatal(err))
 			return
 		}
 	}
-	err = cs.act("QUIT", "2")
+	err, _ = cs.act("QUIT", "2")
 	if err != nil {
 		env.recErr("", err.Error(), fatal(err))
 	}
