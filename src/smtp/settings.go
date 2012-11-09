@@ -2,6 +2,7 @@ package smtp
 
 import (
 	"encoding/json"
+	"fmt"
 	"log4g"
 	"os"
 	"path"
@@ -26,13 +27,7 @@ type Settings struct {
 }
 
 func (s Settings) Dump() string {
-	s.RelayCtrl = relayCfg{}
-	s.Retries = []int{}
-	dump, err := json.Marshal(s)
-	if err == nil {
-		return string(dump)
-	}
-	return err.Error()
+	return fmt.Sprintf("SMTP@%s:%d, DBG=%v, CFG=%s", s.Bind, s.Port, s.DebugMode, s.fileName)
 }
 
 func (s Settings) originDomain(sender string) string {

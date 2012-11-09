@@ -39,9 +39,8 @@ func main() {
 		panic(err)
 	}
 	ln.SetDeadline(time.Now().Add(1 * time.Minute))
-	svrState := "SMTP" + environ.Dump()
-	environ.Log(svrState)
-	fmt.Println(svrState)
+	environ.Log(environ.Dump())
+	fmt.Println(environ.Dump())
 	for {
 		go smtp.SendMails(environ.Spool+"/outbound", environ)
 		conn, err := ln.Accept()
