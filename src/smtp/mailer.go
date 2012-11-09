@@ -88,18 +88,27 @@ func sendMail(file string, ss *Settings) {
 		return
 	}
 	defer msg.Close()
-	mxs, err := net.LookupMX(env.domain)
-	if err != nil {
-		env.Debugf("GetMX: %v", err)
-		env.recErr("", err.Error(), true)
-		return
+	var mxs []string
+	if len(ss.Gateways) > 0 {
+		mxs = ss.Gateways
+	} else {
+		mxrs, err := net.LookupMX(env.domain)
+		if err != nil {
+			env.Debugf("GetMX: %v", err)
+			env.recErr("", err.Error(), true)
+			return
+		}
+		mxs = make([]string, 0, len(mxrs))
+		for _, mxr := range mxrs {
+			mxs = append(mxs, mxr.Host)
+		}
 	}
 	for _, mx := range mxs {
 		if len(env.Recipients) == 0 {
 			break
 		}
 		msg.Seek(0, 0)
-		send(mx.Host, env, msg)
+		send(mx, env, msg)
 	}
 }
 

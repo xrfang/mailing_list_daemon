@@ -1,10 +1,8 @@
 Possible improvements (in order of priority):
- 
-- Add Outbound Relay option so that all mails are relayed instead of delivered to destination directly
-
-- Change RelayCtrl format, allow relay to any address from allowed IP or domain etc.
 
 - Process SIGHUP
+ 
+- Consider allow open group (i.e. anyone can send to members within the group)
 
 - Consider prevention of loopholes in configuration file
 

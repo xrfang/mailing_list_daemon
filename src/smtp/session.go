@@ -102,37 +102,54 @@ func (s svrSession) expnList(ctrl map[string][]string, list []string, name strin
 	}
 }
 
+func (s svrSession) openRelayAllowed() bool {
+	ra := net.ParseIP(strings.Split(s.conn.RemoteAddr().String(), ":")[0])
+	for _, r := range s.OpenRelay {
+		ip := net.ParseIP(r)
+		if ip.Equal(ra) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *svrSession) relay(addr string) string {
 	parts := strings.SplitN(addr, "@", 2)
 	if len(parts) < 2 {
-		return "Relay denied for " + addr
+		return "Relay denied (invalid address: " + addr + ")"
 	}
+	err := "Relay denied (mailbox not exist or policy reason)"
 	ctrl, ok := s.RelayCtrl[parts[1]]
-	if !ok {
-		return "Relay denied for " + addr
-	}
-	expn, ok := ctrl[parts[0]]
-	if !ok {
-		return "Relay denied for " + addr
-	}
-	rcpts, ok := ctrl[s.sender]
-	if !ok {
-		return "Relay denied for " + s.sender
-	}
-	if len(rcpts) > 0 {
-		noMatch := true
-		for _, u := range rcpts {
-			if u == parts[0] {
-				noMatch = false
-				break
+	if ok {
+		expn, ok := ctrl[parts[0]]
+		if ok {
+			rcpts, ok := ctrl[s.sender]
+			if ok {
+				match := true
+				if len(rcpts) > 0 {
+					match = false
+					for _, u := range rcpts {
+						if u == parts[0] {
+							match = true
+							break
+						}
+					}
+				}
+				if match {
+					err = ""
+					s.expnList(ctrl, expn, parts[0])
+				}
 			}
 		}
-		if noMatch {
-			return "Relay denied for " + s.sender
+	}
+	if len(err) > 0 {
+		if s.openRelayAllowed() {
+			err = ""
+			s.recipients[addr] = 1
+			s.Debugf("%s>   =>%s (OpenRelay)", s.CliAddr(), addr)
 		}
 	}
-	s.expnList(ctrl, expn, parts[0])
-	return ""
+	return err
 }
 
 func (s svrSession) CliAddr() string {

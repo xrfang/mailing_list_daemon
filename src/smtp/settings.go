@@ -15,7 +15,9 @@ type Settings struct {
 	MaxCli    int
 	DebugMode bool
 	Spool     string
+	OpenRelay []string
 	RelayCtrl relayCfg
+	Gateways  []string
 	Retries   []int
 	SendLock  int
 	fileName  string
@@ -34,13 +36,15 @@ func (s Settings) Dump() string {
 }
 
 func (s Settings) originDomain(sender string) string {
+	od := "[127.0.0.1]"
 	for domain, ctrl := range s.RelayCtrl {
+		od = domain
 		_, ok := ctrl[sender]
 		if ok {
 			return domain
 		}
 	}
-	return "[127.0.0.1]"
+	return od
 }
 
 func LoadSettings(filename string) (*Settings, error) {
@@ -54,12 +58,14 @@ func LoadSettings(filename string) (*Settings, error) {
 		1,                 //MaxCli
 		false,             //DebugMode
 		"/var/spool/mail", //Spool
+		[]string{},        //OpenRelay
 		relayCfg{
 			"example.com": {
 				"postmaster":        {"admin@example.com"},
 				"admin@example.com": {"postmaster"},
 			},
 		}, //RelayCtrl
+		[]string{}, //Gateways
 		[]int{
 			900, 1800, 3600, 7200,
 			14400, 28800, 57600,
