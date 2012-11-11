@@ -113,43 +113,40 @@ func (s svrSession) openRelayAllowed() bool {
 	return false
 }
 
+func (s svrSession) senderAllowed(from string, rcpt string, domain string) bool {
+	_, ok := s.r_int[domain][from]
+	if ok {
+		return true
+	}
+	ext, ok := s.r_ext[domain]
+	if ok {
+		_, ok = ext[rcpt]
+		if ok || len(ext) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *svrSession) relay(addr string) string {
-	parts := strings.SplitN(addr, "@", 2)
-	if len(parts) < 2 {
+	parts := strings.Split(addr, "@")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return "Relay denied (invalid address: " + addr + ")"
 	}
-	err := "Relay denied (mailbox not exist or policy reason)"
-	ctrl, ok := s.RelayCtrl[parts[1]]
+	result := "Mailbox not exist or relay denied"
+	ctrl, ok := s.Routing[parts[1]]
 	if ok {
 		expn, ok := ctrl[parts[0]]
-		if ok {
-			rcpts, ok := ctrl[s.sender]
-			if ok {
-				match := true
-				if len(rcpts) > 0 {
-					match = false
-					for _, u := range rcpts {
-						if u == parts[0] {
-							match = true
-							break
-						}
-					}
-				}
-				if match {
-					err = ""
-					s.expnList(ctrl, expn, parts[0])
-				}
-			}
+		if ok && s.senderAllowed(s.sender, parts[0], parts[1]) {
+			s.expnList(ctrl, expn, parts[0])
+			result = ""
 		}
+	} else if s.openRelayAllowed() {
+		s.recipients[addr] = 1
+		s.Debugf("%s>   =>%s (OpenRelay)", s.CliAddr(), addr)
+		result = ""
 	}
-	if len(err) > 0 {
-		if s.openRelayAllowed() {
-			err = ""
-			s.recipients[addr] = 1
-			s.Debugf("%s>   =>%s (OpenRelay)", s.CliAddr(), addr)
-		}
-	}
-	return err
+	return result
 }
 
 func (s svrSession) CliAddr() string {
@@ -218,7 +215,11 @@ func (s *svrSession) prep() error {
 		p := strings.SplitN(r, "@", 2)
 		domains[p[1]] = append(domains[p[1]], r)
 	}
-	fromDomain := s.originDomain(s.sender)
+	fromDomain := "[127.0.0.1]"
+	for domain, _ := range s.Routing {
+		fromDomain = domain
+		break
+	}
 	for d, u := range domains {
 		file, err := os.Create(fmt.Sprintf("%s/%d@%s@0.env", inbound, s.seq, d))
 		if err != nil {

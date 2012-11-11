@@ -6,9 +6,10 @@ import (
 	"log4g"
 	"os"
 	"path"
+	"strings"
 )
 
-type relayCfg map[string]map[string][]string
+type routes map[string]map[string][]string
 
 type Settings struct {
 	Bind      string
@@ -17,12 +18,14 @@ type Settings struct {
 	DebugMode bool
 	Spool     string
 	OpenRelay []string
-	RelayCtrl relayCfg
+	Routing   routes
 	Gateways  []string
 	Retries   []int
 	SendLock  int
 	fileName  string
 	expire    int
+	r_int     routes //list members (allowed senders)
+	r_ext     routes //recipients opened to outside 
 	*log4g.SysLogger
 }
 
@@ -30,16 +33,27 @@ func (s Settings) Dump() string {
 	return fmt.Sprintf("SMTP@%s:%d, DBG=%v, CFG=%s", s.Bind, s.Port, s.DebugMode, s.fileName)
 }
 
-func (s Settings) originDomain(sender string) string {
-	od := "[127.0.0.1]"
-	for domain, ctrl := range s.RelayCtrl {
-		od = domain
-		_, ok := ctrl[sender]
+func (s *Settings) compileRoutes() {
+	for domain, route := range s.Routing {
+		s.r_int[domain] = make(map[string][]string)
+		for alias, expn := range route {
+			if alias == "@" {
+				continue
+			}
+			for _, addr := range expn {
+				if strings.Index(addr, "@") >= 0 {
+					s.r_int[domain][addr] = nil
+				}
+			}
+		}
+		open_routes, ok := route["@"]
 		if ok {
-			return domain
+			s.r_ext[domain] = make(map[string][]string)
+			for _, addr := range open_routes {
+				s.r_ext[domain][addr] = nil
+			}
 		}
 	}
-	return od
 }
 
 func LoadSettings(filename string) (*Settings, error) {
@@ -54,12 +68,12 @@ func LoadSettings(filename string) (*Settings, error) {
 		false,             //DebugMode
 		"/var/spool/mail", //Spool
 		[]string{},        //OpenRelay
-		relayCfg{
+		routes{
 			"example.com": {
-				"postmaster":        {"admin@example.com"},
-				"admin@example.com": {"postmaster"},
+				"@":          {"postmaster"},
+				"postmaster": {"admin@example.com"},
 			},
-		}, //RelayCtrl
+		}, //Routing
 		[]string{}, //Gateways
 		[]int{
 			900, 1800, 3600, 7200,
@@ -67,7 +81,9 @@ func LoadSettings(filename string) (*Settings, error) {
 		}, //Retries
 		3600, //SendLock
 		filename,
-		0, //expire
+		0,        //expire
+		routes{}, //r_int
+		routes{}, //r_ext
 		logger,
 	}
 	var f *os.File
@@ -114,6 +130,7 @@ func LoadSettings(filename string) (*Settings, error) {
 		} else if s.expire < 3600 {
 			s.expire = 3600
 		}
+		s.compileRoutes()
 	}
 	return &s, err
 }
