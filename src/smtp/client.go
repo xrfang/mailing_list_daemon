@@ -59,7 +59,10 @@ func (s *cliSession) act(cmd string, expect string) (error, []string) {
 }
 
 func NewCliSession(server string, env *envelope) (*cliSession, error) {
-	conn, err := net.Dial("tcp", server+":25")
+	if strings.Index(server, ":") < 0 {
+		server = server + ":25"
+	}
+	conn, err := net.Dial("tcp", server)
 	if err != nil {
 		return nil, err
 	}
