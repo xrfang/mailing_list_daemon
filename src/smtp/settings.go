@@ -57,7 +57,8 @@ func (s *Settings) compileRoutes() {
 }
 
 func LoadSettings(filename string) (*Settings, error) {
-	logger, err := log4g.NewSysLogger(path.Base(os.Args[0]), log4g.DEBUG_MODE)
+	ident := fmt.Sprintf("%s[%d]", path.Base(os.Args[0]), os.Getpid())
+	logger, err := log4g.NewSysLogger(ident, log4g.DEBUG_MODE)
 	if err != nil {
 		return nil, err
 	}

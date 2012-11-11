@@ -239,7 +239,8 @@ func (s *svrSession) prep() error {
 	}
 	s.file, err = os.Create(fmt.Sprintf("%s/%d.msg", inbound, s.seq))
 	if err == nil {
-		_, err = s.file.Write([]byte("Received: from " + strings.Split(s.CliAddr(), ":")[0] + " by " + fromDomain + "; " + time.Now().String()))
+		rcvd := fmt.Sprintf("Received: from %s by %s with SMTP id %x; %v", strings.Split(s.CliAddr(), ":")[0], fromDomain, os.Getpid(), time.Now())
+		_, err = s.file.Write([]byte(rcvd))
 	}
 	s.data = 0
 	return nil
