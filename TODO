@@ -1,8 +1,6 @@
 Possible improvements (in order of priority):
 
 - Process SIGHUP
- 
-- Consider allow open group (i.e. anyone can send to members within the group)
 
 - Consider prevention of loopholes in configuration file
 
