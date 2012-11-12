@@ -1,5 +1,7 @@
 Possible improvements (in order of priority):
 
+- Add Logging facilities (i.e. messages are not deleted after deliver, but moved to a log folder)
+
 - Process SIGHUP
 
 - Consider prevention of loopholes in configuration file
