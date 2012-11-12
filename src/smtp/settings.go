@@ -69,18 +69,10 @@ func LoadSettings(filename string) (*Settings, error) {
 		false,             //DebugMode
 		"/var/spool/mail", //Spool
 		[]string{},        //OpenRelay
-		routes{
-			"example.com": {
-				"@":          {"postmaster"},
-				"postmaster": {"admin@example.com"},
-			},
-		}, //Routing
-		[]string{}, //Gateways
-		[]int{
-			900, 1800, 3600, 7200,
-			14400, 28800, 57600,
-		}, //Retries
-		3600, //SendLock
+		routes{},          //Routing
+		[]string{},        //Gateways
+		[]int{},           //Retries
+		3600,              //SendLock
 		filename,
 		0,        //expire
 		routes{}, //r_int
@@ -94,9 +86,18 @@ func LoadSettings(filename string) (*Settings, error) {
 			f, err = os.Create(filename)
 			if err == nil {
 				defer f.Close()
-				s, err := json.MarshalIndent(s, "", "\t")
+				s.Routing = routes{
+					"example.com": {
+						"@":          {"postmaster"},
+						"postmaster": {"admin@example.com"},
+					},
+				}
+				s.Retries = []int{
+					900, 1800, 3600, 7200, 14400, 28800, 57600,
+				}
+				js, err := json.MarshalIndent(s, "", "\t")
 				if err == nil {
-					f.Write(s)
+					f.Write(js)
 				}
 			}
 		}
