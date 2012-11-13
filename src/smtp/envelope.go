@@ -24,6 +24,18 @@ type envelope struct {
 	*Settings
 }
 
+func purgeMsg(fn string, ss *Settings) {
+	var err error
+	if ss.AuditLog != "" {
+		err = os.Rename(fn, ss.AuditLog+"/"+path.Base(fn))
+	} else {
+		err = os.Remove(fn)
+	}
+	if err != nil {
+		ss.Log("RUNERR: " + err.Error())
+	}
+}
+
 func loadEnvelope(file string, ss *Settings) *envelope {
 	var err error
 	var env envelope
@@ -133,7 +145,7 @@ func (e *envelope) flush(final bool) {
 			defer f.Close()
 			enc := json.NewEncoder(f)
 			if err = enc.Encode(e); err == nil {
-				os.Remove(e.file)
+				purgeMsg(e.file, e.Settings)
 				e.file = newfile
 			} else {
 				e.Log("RUNERR: " + err.Error())
@@ -143,7 +155,7 @@ func (e *envelope) flush(final bool) {
 		}
 	} else {
 		e.Debug("No more recipients, removing: " + path.Base(e.file))
-		os.Remove(e.file)
+		purgeMsg(e.file, e.Settings)
 		e.file = ""
 	}
 	return
@@ -162,8 +174,8 @@ func (e envelope) bounce(failed []string, errmsg string) {
 	defer func() {
 		if err != nil {
 			e.Log("RUNERR: " + err.Error())
-			os.Remove(mfn)
-			os.Remove(efn)
+			purgeMsg(mfn, e.Settings)
+			purgeMsg(efn, e.Settings)
 		}
 	}()
 	omsg, err := os.Open(e.content)

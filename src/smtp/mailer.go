@@ -125,10 +125,7 @@ func SendMails(spool string, ss *Settings) {
 				if err == nil {
 					if ts+int64(ss.expire) <= time.Now().Unix() {
 						ss.Debugf("SendMail: removing obsolete envelope: " + fn)
-						err = os.Remove(f)
-						if err != nil {
-							ss.Logf("RUNERR: %v", err)
-						}
+						purgeMsg(f, ss)
 					} else {
 						ecnt++
 						go sendMail(f, ss)
@@ -140,10 +137,7 @@ func SendMails(spool string, ss *Settings) {
 				env, _ := filepath.Glob(f[0:len(f)-4] + "@*.env")
 				if len(env) == 0 {
 					ss.Debugf("SendMail: removing obsolete message: " + fn)
-					err = os.Remove(f)
-					if err != nil {
-						ss.Logf("RUNERR: %v", err)
-					}
+					purgeMsg(f, ss)
 				}
 			}
 		}

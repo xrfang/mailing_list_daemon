@@ -17,6 +17,7 @@ type Settings struct {
 	MaxCli    int
 	DebugMode bool
 	Spool     string
+	AuditLog  string
 	OpenRelay []string
 	Routing   routes
 	Gateways  []string
@@ -68,6 +69,7 @@ func LoadSettings(filename string) (*Settings, error) {
 		1,                 //MaxCli
 		false,             //DebugMode
 		"/var/spool/mail", //Spool
+		"/var/log/mld",    //AuditLog
 		[]string{},        //OpenRelay
 		routes{},          //Routing
 		[]string{},        //Gateways
@@ -109,9 +111,13 @@ func LoadSettings(filename string) (*Settings, error) {
 	if err == nil {
 		s.Mode(s.DebugMode)
 		s.Spool = path.Clean(s.Spool)
-		err = os.MkdirAll(s.Spool+"/inbound", 0777)
+		err = os.MkdirAll(s.Spool+"/inbound", 0755)
 		if err == nil {
-			err = os.MkdirAll(s.Spool+"/outbound", 0777)
+			err = os.MkdirAll(s.Spool+"/outbound", 0755)
+		}
+		if err == nil && s.AuditLog != "" {
+			s.AuditLog = path.Clean(s.AuditLog)
+			err = os.MkdirAll(s.AuditLog, 0755)
 		}
 	}
 	if err == nil {
