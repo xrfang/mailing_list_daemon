@@ -88,10 +88,11 @@ func loadEnvelope(file string, ss *Settings) *envelope {
 }
 
 func (e *envelope) recErr(rcpt string, msg string, fatal bool) {
-        e.Debugf("RUNERR: " + msg)
 	if fatal {
+		e.Logf("RUNERR: " + msg)
 		e.errors[rcpt] = "!" + msg
 	} else {
+		e.Debugf("RUNERR: " + msg)
 		e.errors[rcpt] = "?" + msg
 	}
 }

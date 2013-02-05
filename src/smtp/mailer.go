@@ -83,7 +83,6 @@ func sendMail(file string, ss *Settings) {
 	defer env.flush(true)
 	msg, err := os.Open(env.content)
 	if err != nil {
-		env.Log("RUNERR: " + err.Error())
 		env.recErr("", err.Error(), false)
 		return
 	}
@@ -94,7 +93,6 @@ func sendMail(file string, ss *Settings) {
 	} else {
 		mxrs, err := net.LookupMX(env.domain)
 		if err != nil {
-			env.Debugf("GetMX: %v", err)
 			env.recErr("", err.Error(), true)
 			return
 		}
