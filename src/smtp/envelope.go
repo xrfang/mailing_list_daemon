@@ -27,7 +27,7 @@ type envelope struct {
 func purgeMsg(fn string, ss *Settings) {
 	var err error
 	if ss.AuditLog != "" {
-		err = os.Rename(fn, ss.AuditLog+"/"+path.Base(fn))
+		err = MoveFile(fn, ss.AuditLog+"/"+path.Base(fn))
 	} else {
 		err = os.Remove(fn)
 	}
@@ -75,7 +75,7 @@ func loadEnvelope(file string, ss *Settings) *envelope {
 	ef.Close()
 	now += int64(ss.SendLock)
 	newfile := fmt.Sprintf("%s@%s@%s.env", p[0], p[1], strconv.FormatInt(now, 36))
-	err = os.Rename(file, newfile)
+	err = MoveFile(file, newfile)
 	if err != nil {
 		return nil
 	}

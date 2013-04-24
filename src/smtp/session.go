@@ -190,7 +190,7 @@ func (s *svrSession) Reset(reason byte) {
 				fi := idir + fn
 				fo := odir + s.path + "." + fn
 				s.Debugf("  %s", fi[ls:])
-				err = os.Rename(fi, fo)
+				err = MoveFile(fi, fo)
 				if err != nil {
 					s.Logf("PROC_SUBMIT_MOVEFILE(%s): %s", fi, err.Error())
 				}
